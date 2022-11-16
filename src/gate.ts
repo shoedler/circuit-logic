@@ -57,7 +57,6 @@ export class Gate extends HTMLDivElement implements IDisposable {
       return false;
     }
 
-
     this._dispose = () => {
       this.removeEventListener('dragstart', this._dragStart, false);
       document.body.removeEventListener('dragover', this._dragOver, false);
@@ -129,5 +128,113 @@ export class GateConnector extends HTMLDivElement implements IDisposable {
 
   dispose = () => {
     this.remove();
+  }
+}
+
+export class GateEdge implements IDisposable {
+  public readonly path: SVGPathElement
+  public readonly start: GateConnector;
+
+  private _end : GateConnector;
+  public get end() : GateConnector { return this._end; }
+  public set end(v : GateConnector) { 
+    this._end = v; 
+    this.path.classList.remove('drawing');
+  }
+
+  constructor(params: { parent: SVGElement, start: GateConnector }) {
+    this.start = params.start;
+    this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    this.path.classList.add('drawing');
+    params.parent.appendChild(this.path);
+  }
+
+  dispose = () => {
+    this.path.remove();
+  }
+}
+
+
+export class GateEdgeFactory {
+  private static _svg: SVGElement;
+  private static _currentEdge: GateEdge;
+  private static isConnector = (element: HTMLElement) => element ? element.classList.contains('gate-connector') : false; // TODO: Make classnames static props on the classes
+  public static attach = (params: { attachee: HTMLDivElement }) => {
+    this._svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    params.attachee.appendChild(this._svg);
+
+    document.addEventListener('mousedown', (e: MouseEvent) => {
+      const startConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
+      if (this.isConnector(startConnector)) { 
+        this._currentEdge = new GateEdge({ parent: this._svg, start: startConnector });
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+      if (this._currentEdge) {
+        const startOffset = this._currentEdge.start.getBoundingClientRect();
+        const offset = this._svg.getBoundingClientRect();
+
+        const start = {
+          left: startOffset.left - offset.left,
+          top: startOffset.top - offset.top,
+          width: startOffset.width / 2,
+          height: startOffset.height / 2
+        }
+
+        const end = {
+          left: e.clientX - offset.left,
+          top: e.clientY - offset.top,
+          width: 0,
+          height: 0
+        };
+
+        const path = `M ${start.left + start.width} ${start.top + start.height} L ${end.left} ${end.top}`;
+        this._currentEdge.path.setAttribute('d', path);
+
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    document.addEventListener('mouseup', (e: MouseEvent) => {
+      if (this._currentEdge) {
+        const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
+        if (this.isConnector(endConnector) && endConnector !== this._currentEdge.start) {
+          this._currentEdge.end = endConnector;
+
+          const startOffset = this._currentEdge.start.getBoundingClientRect();
+          const endOffset = this._currentEdge.end.getBoundingClientRect();
+          const offset = this._svg.getBoundingClientRect();
+
+          const start = {
+            left: startOffset.left - offset.left,
+            top: startOffset.top - offset.top,
+            width: startOffset.width / 2,
+            height: startOffset.height / 2
+          }
+
+          const end = {
+            left: endOffset.left - offset.left,
+            top: endOffset.top - offset.top,
+            width: endOffset.width / 2,
+            height: endOffset.height / 2
+          }
+
+          const path = `M ${start.left + start.width} ${start.top + start.height} L ${end.left + end.width} ${end.top + end.height}`;
+          this._currentEdge.path.setAttribute('d', path);
+
+        }
+        else {
+          this._currentEdge.dispose();
+        }
+
+        this._currentEdge = null;
+        e.preventDefault();
+        return false;
+      }
+    });
   }
 }
