@@ -1,3 +1,15 @@
+:root {
+  --color-red: rgb(216 50 50);
+  --color-green: rgb(86 216 50);
+  --color-blue: rgb(57 123 200);
+  --color-yellow: rgb(210, 210, 49);
+  --color-turquoise: rgb(57, 201, 201);
+  --color-darkgreen: rgb(79, 138, 62);
+  --color-gray: rgb(92, 92, 92);
+
+  --color-active: rgb(137, 103, 12);
+}
+
 body {
   margin: 0;
   background-image: radial-gradient(hsla(230, 5%, 80%, 0.08) 2px, transparent 0), radial-gradient(hsl(0deg 0% 100% / 8%) 1px, transparent 0);
@@ -73,17 +85,38 @@ svg {
 
 svg > path {
   fill: none;
+  filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .3));
   stroke-width: 5;
-  stroke: hsla(230, 5%, 80%, 0.08) ;
+  stroke: hsl(0deg 0% 14%);
   stroke-linejoin: round;
 }
 
 svg > path.drawing {
   stroke-dasharray: 4 3;
+  stroke-linecap: butt;
 }
 
+svg > path.active {
+  stroke: var(--color-active);
+  stroke-dasharray: 4 2;
+  stroke-dashoffset: 1000;
+  animation: drawPath 30s linear forwards infinite;
+  pointer-events: none;
+}
+@keyframes drawPath {
+  to {
+      stroke-dashoffset: 0;
+  }
+}
+
+
+
 svg > path.illegal {
-  stroke: hsla(0, 84%, 45%, 0.336) ;
+  stroke: var(--color-red);
+}
+
+svg > path.legal {
+  stroke: var(--color-green) ;
 }
 
 
@@ -94,11 +127,12 @@ svg > path.illegal {
   display: flex;
   align-items: center;
 
-  background: rgb(50, 50, 216);
-  border-radius: 10px;
-  border-style: inset;
-  border-color: hsla(230, 5%, 80%, 0.08);
-  border-width: 5px;
+  filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .4));
+  background: var(--color-blue);
+  border-radius: 7px;
+  border-style: ridge;
+  border-color: hsla(230, 5%, 80%, 0.20);
+  border-width: 3px;
   box-sizing: border-box;
 }
 .gate:hover {
@@ -155,5 +189,9 @@ svg > path.illegal {
 }
 
 .gate-connector.illegal {
-  background: hsla(0, 84%, 45%, 0.336) ;
+  background: var(--color-red) ;
+}
+
+.gate-connector.legal {
+  stroke: var(--color-green) ;
 }
