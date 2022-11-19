@@ -82,6 +82,9 @@ svg > path.drawing {
   stroke-dasharray: 4 3;
 }
 
+svg > path.illegal {
+  stroke: hsla(0, 84%, 45%, 0.336) ;
+}
 
 
 .gate {
@@ -140,4 +143,8 @@ svg > path.drawing {
 
 .gate-connector:last-child {
   margin-bottom: 0%;
+}
+
+.gate-connector.illegal {
+  background: hsla(0, 84%, 45%, 0.336) ;
 }

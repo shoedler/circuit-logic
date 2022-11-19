@@ -2,7 +2,11 @@ interface IDisposable {
     dispose(): void;
 }
 
-export class Gate extends HTMLDivElement implements IDisposable {
+interface IUpdatable {
+    update(): void;
+}
+
+export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
   private static _gateCount = 0;
 
   private readonly _dragStart: (e: DragEvent) => void;
@@ -37,7 +41,7 @@ export class Gate extends HTMLDivElement implements IDisposable {
     
     this._drop = (e: DragEvent) => {
       const data = e.dataTransfer.getData("text/plain").split(',');
-      const gate = document.getElementById(data[2]) as HTMLElement;
+      const gate = document.getElementById(data[2]) as Gate;
     
       let left = (e.clientX + parseInt(data[0], 10))
       let top = (e.clientY + parseInt(data[1], 10))
@@ -52,6 +56,9 @@ export class Gate extends HTMLDivElement implements IDisposable {
       
       gate.style.left = left + 'px';
       gate.style.top = top + 'px';
+
+      // Propagating call to update, will update the edges
+      gate.update();
     
       e.preventDefault();
       return false;
@@ -61,6 +68,8 @@ export class Gate extends HTMLDivElement implements IDisposable {
       this.removeEventListener('dragstart', this._dragStart, false);
       document.body.removeEventListener('dragover', this._dragOver, false);
       document.body.removeEventListener('drop', this._drop, false);
+      this._inputs.dispose();
+      this._outputs.dispose();
       this.remove();
     }
 
@@ -94,19 +103,31 @@ export class Gate extends HTMLDivElement implements IDisposable {
     params.bounds.appendChild(this);
   }
 
+  public update(): void {
+      this._inputs.update();
+      this._outputs.update();
+  }
+
   public dispose = () => this._dispose();
 }
 
-export class GateConnectorCollection extends HTMLDivElement implements IDisposable {
+export class GateConnectorCollection extends HTMLDivElement implements IDisposable, IUpdatable {
   private readonly _connectors: GateConnector[] = [];
-
+  public readonly type: 'inputs' | 'outputs';
   constructor(owner: Gate, type: 'inputs' | 'outputs', connectors: string[]) {
     super();
 
     this.classList.add(`gate-${type}`);
+    this.type = type;
     owner.appendChild(this);
 
     connectors.forEach(c => this._connectors.push(new GateConnector(this, c)));
+  }
+
+  public forEach = (callback: (connector: GateConnector) => void) => this._connectors.forEach(callback);
+
+  public update(): void {
+    this._connectors.forEach(c => c.update());
   }
 
   public dispose = () => {
@@ -115,15 +136,49 @@ export class GateConnectorCollection extends HTMLDivElement implements IDisposab
   }
 }
 
-export class GateConnector extends HTMLDivElement implements IDisposable {
+export class GateConnector extends HTMLDivElement implements IDisposable, IUpdatable {
   private readonly _name: string;
-  constructor(owner: GateConnectorCollection, name: string) {
+  private readonly _parent: GateConnectorCollection;
+  private readonly _edges: GateEdge[] = [];
+  public readonly type: () => 'inputs' | 'outputs';
+  constructor(parent: GateConnectorCollection, name: string) {
     super();
 
     this.classList.add('gate-connector');
-    owner.appendChild(this);
+    parent.appendChild(this);
+    this.type = function () { return parent.type };
 
     this._name = name;
+  }
+
+  public toggleIllegal = (illegal: boolean) => {
+    if (illegal) {
+      this.classList.add('illegal');
+    } else {
+      this.classList.remove('illegal');
+    }
+  }
+
+  public newEdge = (parent: SVGElement): GateEdge => {
+    const edge = new GateEdge({ parent, start: this });
+    this._edges.push(edge);
+    return edge;
+  }
+
+  public endEdge = (end: GateEdge) => {
+    end.end = this;
+    this._edges.push(end);
+  }
+
+  public removeEdge = (edge: GateEdge) => {
+    const index = this._edges.indexOf(edge);
+    if (index > -1) {
+      this._edges.splice(index, 1);
+    }
+  }
+
+  public update(): void {
+    this._edges.forEach(e => e.update());
   }
 
   dispose = () => {
@@ -131,9 +186,10 @@ export class GateConnector extends HTMLDivElement implements IDisposable {
   }
 }
 
-export class GateEdge implements IDisposable {
+export class GateEdge implements IDisposable, IUpdatable {
   public readonly path: SVGPathElement
   public readonly start: GateConnector;
+  private readonly _svg: Omit<SVGElement, 'remove'>;
 
   private _end : GateConnector;
   public get end() : GateConnector { return this._end; }
@@ -146,14 +202,73 @@ export class GateEdge implements IDisposable {
     this.start = params.start;
     this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     this.path.classList.add('drawing');
-    params.parent.appendChild(this.path);
+
+    this._svg = params.parent;
+    this._svg.appendChild(this.path);
+  }
+
+  public toggleIllegal = (illegal: boolean) => {
+    if (illegal) {
+      this.path.classList.add('illegal');
+    } else {
+      this.path.classList.remove('illegal');
+    }
+  }
+
+  public draw = (pos?: { x: number, y: number }) => {
+    const offset = this._svg.getBoundingClientRect();
+    const startOffset = this.start.getBoundingClientRect();
+    const start = {
+      left: startOffset.left - offset.left,
+      top: startOffset.top - offset.top,
+      width: startOffset.width / 2,
+      height: startOffset.height / 2
+    }
+
+    if (pos) {
+      const end = {
+        left: pos.x - offset.left,
+        top: pos.y - offset.top,
+        width: 0,
+        height: 0
+      };
+
+      const path = `M ${start.left + start.width} ${start.top + start.height} L ${end.left} ${end.top}`;
+      this.path.setAttribute('d', path);
+    }
+    else if (this.end) {
+      const endOffset = this.end.getBoundingClientRect();
+      const end = {
+        left: endOffset.left - offset.left,
+        top: endOffset.top - offset.top,
+        width: endOffset.width / 2,
+        height: endOffset.height / 2
+      }
+
+      const path = `M ${start.left + start.width} ${start.top + start.height} L ${end.left + end.width} ${end.top + end.height}`;
+      this.path.setAttribute('d', path);
+    }
+    else {
+      throw new Error('Cannot draw edge without end or position');
+    }
+  }
+
+  public update(): void {
+    this.draw()
   }
 
   dispose = () => {
     this.path.remove();
+    if (this.end) {
+      this.end.removeEdge(this);
+      this.end = null;
+    }
+    if (this.start) {
+      this.start.removeEdge(this);
+      this.start
+    }
   }
 }
-
 
 export class GateEdgeFactory {
   private static _svg: SVGElement;
@@ -166,7 +281,13 @@ export class GateEdgeFactory {
     document.addEventListener('mousedown', (e: MouseEvent) => {
       const startConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
       if (this.isConnector(startConnector)) { 
-        this._currentEdge = new GateEdge({ parent: this._svg, start: startConnector });
+        if (startConnector.type() === 'inputs') {
+          startConnector.toggleIllegal(true);
+          setTimeout(() => startConnector.toggleIllegal(false), 500);
+          return 
+        }
+        
+        this._currentEdge = startConnector.newEdge(this._svg);
         e.preventDefault();
         return false;
       }
@@ -174,27 +295,18 @@ export class GateEdgeFactory {
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
       if (this._currentEdge) {
-        const startOffset = this._currentEdge.start.getBoundingClientRect();
-        const offset = this._svg.getBoundingClientRect();
+        this._currentEdge.draw({ x: e.clientX, y: e.clientY });
 
-        const start = {
-          left: startOffset.left - offset.left,
-          top: startOffset.top - offset.top,
-          width: startOffset.width / 2,
-          height: startOffset.height / 2
+        // Visually show that the edge is valid
+        const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
+        if (this.isConnector(endConnector)) {
+          if (endConnector.type() === 'outputs')
+            this._currentEdge.toggleIllegal(true);
+        }
+        else {
+          this._currentEdge.toggleIllegal(false);
         }
 
-        const end = {
-          left: e.clientX - offset.left,
-          top: e.clientY - offset.top,
-          width: 0,
-          height: 0
-        };
-
-        const path = `M ${start.left + start.width} ${start.top + start.height} L ${end.left} ${end.top}`;
-        this._currentEdge.path.setAttribute('d', path);
-
-        e.preventDefault();
         return false;
       }
     });
@@ -202,30 +314,10 @@ export class GateEdgeFactory {
     document.addEventListener('mouseup', (e: MouseEvent) => {
       if (this._currentEdge) {
         const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
-        if (this.isConnector(endConnector) && endConnector !== this._currentEdge.start) {
-          this._currentEdge.end = endConnector;
-
-          const startOffset = this._currentEdge.start.getBoundingClientRect();
-          const endOffset = this._currentEdge.end.getBoundingClientRect();
-          const offset = this._svg.getBoundingClientRect();
-
-          const start = {
-            left: startOffset.left - offset.left,
-            top: startOffset.top - offset.top,
-            width: startOffset.width / 2,
-            height: startOffset.height / 2
-          }
-
-          const end = {
-            left: endOffset.left - offset.left,
-            top: endOffset.top - offset.top,
-            width: endOffset.width / 2,
-            height: endOffset.height / 2
-          }
-
-          const path = `M ${start.left + start.width} ${start.top + start.height} L ${end.left + end.width} ${end.top + end.height}`;
-          this._currentEdge.path.setAttribute('d', path);
-
+        if (this.isConnector(endConnector)) {
+          if (endConnector.type() === 'outputs')
+            return
+          endConnector.endEdge(this._currentEdge);
         }
         else {
           this._currentEdge.dispose();
