@@ -8,12 +8,6 @@ interface IUpdatable {
 
 export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
   private static _gateCount = 0;
-
-  private readonly _dragStart: (e: DragEvent) => void;
-  private readonly _dragOver: (e: DragEvent) => boolean;
-  private readonly _drop: (e: DragEvent) => boolean;
-  private readonly _dispose: () => void;
-
   private readonly _inputs: GateConnectorCollection;
   private readonly _name: HTMLParagraphElement;
   private readonly _outputs: GateConnectorCollection;
@@ -24,81 +18,21 @@ export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
   constructor(params: { bounds: HTMLDivElement, name: string, inputs?: string[], outputs?: string[] }) {
     super();
 
-    // Setup drag events
-    this._dragStart = (e: DragEvent) => {
-      const target = e.target as HTMLElement;
-      const style = window.getComputedStyle(target, null);
-    
-      e.dataTransfer.setData("text/plain", 
-        (parseInt(style.getPropertyValue("left"), 10) - e.clientX) + ',' + 
-        (parseInt(style.getPropertyValue("top"), 10) - e.clientY) + ',' + target.id);
-    }
-    
-    this._dragOver = (e: DragEvent) => {
-      e.preventDefault();
-      return false;
-    }
-    
-    this._drop = (e: DragEvent) => {
-      const data = e.dataTransfer.getData("text/plain").split(',');
-      const gate = document.getElementById(data[2]) as Gate;
-    
-      let left = (e.clientX + parseInt(data[0], 10))
-      let top = (e.clientY + parseInt(data[1], 10))
-      
-      // // Bind to the bounds of the sketch
-      // if (left < 0) left = 0;
-      // if (top < 0) top = 0;
-      // if (left > bounds.clientWidth - gate.clientWidth) left = bounds.clientWidth - gate.clientWidth;
-      // if (top > bounds.clientHeight - gate.clientHeight) top = bounds.clientHeight - gate.clientHeight;
-      // // left %= bounds.clientWidth - gate.clientWidth;
-      // // top %= bounds.clientHeight - gate.clientHeight;
-      
-      gate.style.left = left + 'px';
-      gate.style.top = top + 'px';
-
-      // Propagating call to update, will update the edges
-      gate.update();
-    
-      e.preventDefault();
-      return false;
-    }
-
-    this._dispose = () => {
-      this.removeEventListener('dragstart', this._dragStart, false);
-      document.body.removeEventListener('dragover', this._dragOver, false);
-      document.body.removeEventListener('drop', this._drop, false);
-      this._inputs.dispose();
-      this._outputs.dispose();
-      this.remove();
-    }
-
-    // Setup gate root element
     this.classList.add('gate');
-    this.setAttribute('draggable', 'true');
     this.id = `gate-${Gate._gateCount++}`;
 
-    // Setup inputs
     if (params.inputs) {
       this._inputs = new GateConnectorCollection(this, 'inputs', params.inputs);
     }
-    
-    // Setup name paragraph 
+ 
     this._name = document.createElement('p');
+    this._name.classList.add('gate-label');
     this.appendChild(this._name);
     
-    // Setup outputs
     if (params.outputs) {
       this._outputs = new GateConnectorCollection(this, 'outputs', params.outputs);
     }
-
-    // Set name
     this.name = params.name;
-
-    // Add drag events
-    this.addEventListener('dragstart', this._dragStart, false);
-    document.body.addEventListener('dragover', this._dragOver, false);
-    document.body.addEventListener('drop', this._drop, false);
 
     params.bounds.appendChild(this);
   }
@@ -108,7 +42,11 @@ export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
       this._outputs.update();
   }
 
-  public dispose = () => this._dispose();
+  public dispose = () => {
+    this._inputs.dispose();
+    this._outputs.dispose();
+    this.remove();
+  }
 }
 
 export class GateConnectorCollection extends HTMLDivElement implements IDisposable, IUpdatable {
@@ -270,63 +208,148 @@ export class GateEdge implements IDisposable, IUpdatable {
   }
 }
 
-export class GateEdgeFactory {
+interface IDragEventHandler {
+  onStart: (event: MouseEvent) => void;
+  onDrag: (event: MouseEvent) => void;
+  onDrop: (event: MouseEvent) => void;
+}
+
+let currentDragHandler: IDragEventHandler = null;
+
+document.addEventListener('mousedown', (e: MouseEvent) => {
+  const element = document.elementFromPoint(e.clientX, e.clientY);
+  if (element instanceof GateConnector) {
+    currentDragHandler = new EdgeDragHandler();
+  }
+  else if (element instanceof Gate || element.classList.contains('gate-label')) {
+    currentDragHandler = new GateDragHandler();
+  }
+  else {
+    return
+  }
+
+  currentDragHandler.onStart(e);
+})
+
+document.addEventListener('mousemove', (e: MouseEvent) => {
+  if (currentDragHandler) {
+    currentDragHandler.onDrag(e);
+  }
+})
+
+document.addEventListener('mouseup', (e: MouseEvent) => {
+  if (currentDragHandler) {
+    currentDragHandler.onDrop(e);
+    currentDragHandler = null;
+  }
+})
+
+export class EdgeDragHandler implements IDragEventHandler {
   private static _svg: SVGElement;
-  private static _currentEdge: GateEdge;
-  private static isConnector = (element: HTMLElement) => element ? element.classList.contains('gate-connector') : false; // TODO: Make classnames static props on the classes
+  private _currentEdge: GateEdge;
   public static attach = (params: { attachee: HTMLDivElement }) => {
     this._svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     params.attachee.appendChild(this._svg);
-
-    document.addEventListener('mousedown', (e: MouseEvent) => {
-      const startConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
-      if (this.isConnector(startConnector)) { 
-        if (startConnector.type() === 'inputs') {
-          startConnector.toggleIllegal(true);
-          setTimeout(() => startConnector.toggleIllegal(false), 500);
-          return 
-        }
-        
-        this._currentEdge = startConnector.newEdge(this._svg);
-        e.preventDefault();
-        return false;
-      }
-    });
-
-    document.addEventListener('mousemove', (e: MouseEvent) => {
-      if (this._currentEdge) {
-        this._currentEdge.draw({ x: e.clientX, y: e.clientY });
-
-        // Visually show that the edge is valid
-        const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
-        if (this.isConnector(endConnector)) {
-          if (endConnector.type() === 'outputs')
-            this._currentEdge.toggleIllegal(true);
-        }
-        else {
-          this._currentEdge.toggleIllegal(false);
-        }
-
-        return false;
-      }
-    });
-
-    document.addEventListener('mouseup', (e: MouseEvent) => {
-      if (this._currentEdge) {
-        const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
-        if (this.isConnector(endConnector)) {
-          if (endConnector.type() === 'outputs')
-            return
-          endConnector.endEdge(this._currentEdge);
-        }
-        else {
-          this._currentEdge.dispose();
-        }
-
-        this._currentEdge = null;
-        e.preventDefault();
-        return false;
-      }
-    });
   }
+
+  public onStart = (e: MouseEvent) => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    console.assert(el instanceof GateConnector);
+    const startConnector = el as GateConnector;
+
+    if (startConnector.type() === 'inputs') {
+      startConnector.toggleIllegal(true);
+      setTimeout(() => startConnector.toggleIllegal(false), 500);
+      return 
+    }
+    
+    this._currentEdge = startConnector.newEdge(EdgeDragHandler._svg);
+    e.preventDefault();
+    return false;
+  }
+
+   public onDrag = (e: MouseEvent) => {
+    if (this._currentEdge) {
+      this._currentEdge.draw({ x: e.clientX, y: e.clientY });
+
+      // Visually show that the edge is valid
+      const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
+      if (endConnector instanceof GateConnector) {
+        if (endConnector.type() === 'outputs')
+          this._currentEdge.toggleIllegal(true);
+      }
+      else {
+        this._currentEdge.toggleIllegal(false);
+      }
+
+      return false;
+    }
+  }
+
+  public onDrop = (e: MouseEvent) => {
+    if (this._currentEdge) {
+      const endConnector = document.elementFromPoint(e.clientX, e.clientY) as GateConnector;
+      if (endConnector instanceof GateConnector) {
+        if (endConnector.type() === 'outputs') {
+          this._currentEdge.dispose();
+          return
+        }
+        endConnector.endEdge(this._currentEdge);
+      }
+      else {
+        this._currentEdge.dispose();
+      }
+
+      this._currentEdge = null;
+      e.preventDefault();
+      return false;
+    }
+  }
+}
+
+export class GateDragHandler implements IDragEventHandler {
+  private _origin: { x: number, y: number };
+  private _currentGate: Gate;
+  public static attach = (params: { attachee: HTMLDivElement }) => {
+
+  }
+
+  public onStart = (e: MouseEvent) => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    console.assert(el instanceof Gate || el.classList.contains('gate-label'));
+    this._currentGate = el instanceof Gate ? el : el.parentElement as Gate;
+
+    const style = window.getComputedStyle(this._currentGate, null);
+    
+    this._origin = {
+      x: (parseInt(style.getPropertyValue("left"), 10) - e.clientX),
+      y: (parseInt(style.getPropertyValue("top"), 10) - e.clientY)
+    };
+  }
+
+  public onDrag = (e: MouseEvent) => {
+    if (this._currentGate) {
+      let left = e.clientX + this._origin.x
+      let top = e.clientY + this._origin.y
+      
+      // // Bind to the bounds of the sketch
+      // if (left < 0) left = 0;
+      // if (top < 0) top = 0;
+      // if (left > bounds.clientWidth - gate.clientWidth) left = bounds.clientWidth - gate.clientWidth;
+      // if (top > bounds.clientHeight - gate.clientHeight) top = bounds.clientHeight - gate.clientHeight;
+      // // left %= bounds.clientWidth - gate.clientWidth;
+      // // top %= bounds.clientHeight - gate.clientHeight;
+      
+      this._currentGate.style.left = left + 'px';
+      this._currentGate.style.top = top + 'px';
+    
+      // Propagating call to update, will update the edges
+      this._currentGate.update();
+    
+      e.preventDefault();
+      return false;
+    }
+  }
+
+  public onDrop = (e: MouseEvent) => this.onDrag(e);
 }

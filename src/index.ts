@@ -1,8 +1,6 @@
-import { Gate, GateConnector, GateConnectorCollection, GateEdge, GateEdgeFactory } from "./gate";
+import { Gate, GateConnector, GateConnectorCollection, GateEdge, EdgeDragHandler } from "./gate";
 
 (() => {
-
-  
   document.addEventListener('DOMContentLoaded', _ => {
     const gates = document.querySelector('.gates') as HTMLDivElement;
     const edges = document.querySelector('.edges') as HTMLDivElement;
@@ -15,7 +13,7 @@ import { Gate, GateConnector, GateConnectorCollection, GateEdge, GateEdgeFactory
     const orGate = new Gate({ bounds: gates, name: 'OR', inputs: ['A', 'B'], outputs: ['C'] });
     const notGate = new Gate({ bounds: gates, name: 'NOT', inputs: ['A'], outputs: ['C'] });
 
-    GateEdgeFactory.attach({ attachee: edges })
+    EdgeDragHandler.attach({ attachee: edges })
     
   });
 })()

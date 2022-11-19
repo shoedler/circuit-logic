@@ -101,15 +101,21 @@ svg > path.illegal {
   border-width: 5px;
   box-sizing: border-box;
 }
+.gate:hover {
+  cursor: move;
+}
 
-.gate > p {
+.gate-label {
   font-family: Fira Code, sans-serif;
   color: white;
   font-size: 12px;
   margin: 0;
   padding-left: 2px;
   padding-right: 2px;
-  cursor: move;
+  -webkit-user-select: none; /* Safari */        
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* IE10+/Edge */
+  user-select: none; /* Standard */
 }
 
 .gate-inputs {
@@ -139,6 +145,9 @@ svg > path.illegal {
   box-sizing: border-box;
 
   margin-bottom: 2px;
+}
+.gate-connector:hover {
+  cursor: pointer;
 }
 
 .gate-connector:last-child {
