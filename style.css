@@ -7,7 +7,7 @@
   --color-darkgreen: rgb(79, 138, 62);
   --color-gray: rgb(92, 92, 92);
 
-  --color-active: rgb(137, 103, 12);
+  --color-active: rgb(214 219 31);
 }
 
 body {
@@ -34,6 +34,7 @@ body {
 .text {
   font-family: Fira Code, sans-serif;
   color: white;
+  padding-bottom: 1em;
 }
 
 .text > h1 {
@@ -74,6 +75,28 @@ body {
   display: grid;
 }
 
+.buttons {
+  padding-bottom: 1em;
+}
+
+.buttons > button {
+  background-color: #252525;
+  border-color: hsl(230deg 5% 9%);
+  border-style: solid;
+  border-radius: 10px;
+  border-width: 5px;
+  font-family: Fira Sans, sans-serif;
+  color: white;
+  line-height: 1;
+  padding: 3px;
+  margin: 2px;
+  cursor: pointer;
+}
+
+.buttons > button:hover {
+  border-style: double;
+}
+
 .edges, .gates {
   grid-area: 1 / 1;
 }
@@ -87,7 +110,7 @@ svg > path {
   fill: none;
   filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .3));
   stroke-width: 5;
-  stroke: hsl(0deg 0% 14%);
+  stroke: rgb(37, 37, 37);
   stroke-linejoin: round;
 }
 
@@ -109,8 +132,6 @@ svg > path.active {
   }
 }
 
-
-
 svg > path.illegal {
   stroke: var(--color-red);
 }
@@ -118,7 +139,6 @@ svg > path.illegal {
 svg > path.legal {
   stroke: var(--color-green) ;
 }
-
 
 .gate {
   position: relative;
@@ -129,8 +149,8 @@ svg > path.legal {
 
   filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .4));
   background: var(--color-blue);
-  border-radius: 7px;
-  border-style: ridge;
+  border-radius: 5px;
+  border-style: inset;
   border-color: hsla(230, 5%, 80%, 0.20);
   border-width: 3px;
   box-sizing: border-box;
@@ -141,8 +161,8 @@ svg > path.legal {
 
 .gate-label {
   font-family: Fira Code, sans-serif;
-  color: white;
   font-size: 12px;
+  color: white;
   margin: 0;
   padding-left: 2px;
   padding-right: 2px;

@@ -2,16 +2,16 @@ interface IDisposable {
     dispose(): void;
 }
 
-interface IUpdatable {
-    update(): void;
+interface IRedrawable {
+    redraw(): void;
 }
 
-export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
+export class Gate extends HTMLDivElement implements IDisposable, IRedrawable {
   private static _gateCount = 0;
   private readonly _inputs: GateConnectorCollection;
   private readonly _name: HTMLParagraphElement;
   private readonly _outputs: GateConnectorCollection;
-  private readonly _logic: (inputs: boolean[], outputs: boolean[]) => void
+  private readonly _logic: (inputs: boolean[], outputs: boolean[], self?: Gate) => void
 
   public get name(): string { return this._name.innerText;  }
   private set name(v: string) { this._name.innerText = v; }
@@ -22,7 +22,7 @@ export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
     inputs?: string[], 
     outputs?: string[], 
     color?: "red" | "green" | "blue" | "turquoise" | "darkgreen" | "gray",
-    logic: (inputs: boolean[], outputs: boolean[]) => void
+    logic: (inputs: boolean[], outputs: boolean[], self?: Gate) => void
   }) {
     super();
 
@@ -54,13 +54,13 @@ export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
   public run = (): void => {
     const inputs = this._inputs.toBoolArray()
     const outputs = this._outputs.toBoolArray()
-    this._logic(inputs, outputs)
+    this._logic(inputs, outputs, this)
     this._outputs.fromBoolArray(outputs)
   }
 
-  public update(): void {
-      this._inputs.update();
-      this._outputs.update();
+  public redraw(): void {
+      this._inputs.redraw();
+      this._outputs.redraw();
   }
 
   public dispose = () => {
@@ -70,7 +70,7 @@ export class Gate extends HTMLDivElement implements IDisposable, IUpdatable {
   }
 }
 
-export class GateConnectorCollection extends HTMLDivElement implements IDisposable, IUpdatable {
+export class GateConnectorCollection extends HTMLDivElement implements IDisposable, IRedrawable {
   private readonly _connectors: GateConnector[] = [];
   public readonly type: 'inputs' | 'outputs';
   constructor(owner: Gate, type: 'inputs' | 'outputs', connectors: string[]) {
@@ -90,21 +90,18 @@ export class GateConnectorCollection extends HTMLDivElement implements IDisposab
     this._connectors.forEach((c, i) => c.toggleActive(values[i]));
   }
 
-  public forEach = (callback: (connector: GateConnector) => void) => this._connectors.forEach(callback);
-
-  public update(): void {
-    this._connectors.forEach(c => c.update());
+  public redraw = (): void => {
+    this._connectors.forEach(c => c.redraw());
   }
 
-  public dispose = () => {
+  public dispose = (): void => {
     this._connectors.forEach(c => c.dispose());
     this.remove();
   }
 }
 
-export class GateConnector extends HTMLDivElement implements IDisposable, IUpdatable {
+export class GateConnector extends HTMLDivElement implements IDisposable, IRedrawable {
   private readonly _name: string;
-  private readonly _parent: GateConnectorCollection;
   private readonly _edges: GateEdge[] = [];
   public get isActive(): boolean { return this._edges.some(edge => edge.isActive); }
   public readonly type: () => 'inputs' | 'outputs';
@@ -118,8 +115,8 @@ export class GateConnector extends HTMLDivElement implements IDisposable, IUpdat
     this._name = name;
   }
 
-  public toggleIllegal = (illegal: boolean) => illegal ? this.classList.add('illegal') : this.classList.remove('illegal');
-  public toggleActive = (active: boolean) => {
+  public toggleIllegal = (illegal: boolean): void => illegal ? this.classList.add('illegal') : this.classList.remove('illegal');
+  public toggleActive = (active: boolean): void => {
     if (this.type() === 'inputs') 
       throw new Error('Cannot toggle active state of input connector');
     this._edges.forEach(e => e.toggleActive(active));
@@ -131,29 +128,29 @@ export class GateConnector extends HTMLDivElement implements IDisposable, IUpdat
     return edge;
   }
 
-  public endEdge = (end: GateEdge) => {
+  public endEdge = (end: GateEdge): void => {
     end.end = this;
     this._edges.push(end);
   }
 
-  public removeEdge = (edge: GateEdge) => {
+  public removeEdge = (edge: GateEdge): void => {
     const index = this._edges.indexOf(edge);
     if (index > -1) {
       this._edges.splice(index, 1);
     }
   }
 
-  public update(): void {
-    this._edges.forEach(e => e.update());
+  public redraw = (): void => {
+    this._edges.forEach(e => e.redraw());
   }
 
-  dispose = () => {
+  public dispose = (): void => {
     this._edges.forEach(e => e.dispose());
     this.remove();
   }
 }
 
-export class GateEdge implements IDisposable, IUpdatable {
+export class GateEdge implements IDisposable, IRedrawable {
   public readonly path: SVGPathElement
   public readonly start: GateConnector;
   private readonly _svg: Omit<SVGElement, 'remove'>;
@@ -169,16 +166,20 @@ export class GateEdge implements IDisposable, IUpdatable {
     this.start = params.start;
     this.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     this.path.classList.add('drawing');
-
+    this.path.addEventListener('dblclick', _ => {
+      if (this.end) this.end.removeEdge(this);
+      if (this.start) this.start.removeEdge(this);
+      this.dispose();
+    });
     this._svg = params.parent;
     this._svg.appendChild(this.path);
   }
 
-  public toggleIllegal = (illegal: boolean) => illegal ? this.path.classList.add('illegal') : this.path.classList.remove('illegal');
-  public toggleLegal = (legal: boolean) => legal ? this.path.classList.add('legal') : this.path.classList.remove('legal');
-  public toggleActive = (active: boolean) => active ? this.path.classList.add('active') : this.path.classList.remove('active');
+  public toggleIllegal = (illegal: boolean): void => illegal ? this.path.classList.add('illegal') : this.path.classList.remove('illegal');
+  public toggleLegal = (legal: boolean): void => legal ? this.path.classList.add('legal') : this.path.classList.remove('legal');
+  public toggleActive = (active: boolean): void => active ? this.path.classList.add('active') : this.path.classList.remove('active');
 
-  public draw = (pos?: { x: number, y: number }) => {
+  public draw = (pos?: { x: number, y: number }): void => {
     const offset = this._svg.getBoundingClientRect();
     const startOffset = this.start.getBoundingClientRect();
 
@@ -236,11 +237,11 @@ export class GateEdge implements IDisposable, IUpdatable {
   }
 
 
-  public update(): void {
+  public redraw = (): void => {
     this.draw()
   }
 
-  dispose = () => {
+  public dispose = (): void => {
     this.path.remove();
     if (this.end) {
       this.end.removeEdge(this);

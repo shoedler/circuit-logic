@@ -1,38 +1,10 @@
 import { GateConnector, Gate, GateEdge } from "./gate";
 
-interface IDragEventHandler {
-  onStart: (event: MouseEvent) => void;
-  onDrag: (event: MouseEvent) => void;
-  onDrop: (event: MouseEvent) => void;
+export interface IDragEventHandler {
+  onStart: (event: MouseEvent) => any;
+  onDrag: (event: MouseEvent) => any;
+  onDrop: (event: MouseEvent) => any;
 }
-
-let currentDragHandler: IDragEventHandler = null;
-
-document.addEventListener('mousedown', (e: MouseEvent) => {
-  const element = document.elementFromPoint(e.clientX, e.clientY);
-  if (element instanceof GateConnector) {
-    currentDragHandler = new EdgeDragHandler();
-  }
-  else if (element instanceof Gate || element.classList.contains('gate-label')) {
-    currentDragHandler = new GateDragHandler();
-  }
-  else {
-    return;
-  }
-
-  currentDragHandler.onStart(e);
-});
-document.addEventListener('mousemove', (e: MouseEvent) => {
-  if (currentDragHandler) {
-    currentDragHandler.onDrag(e);
-  }
-});
-document.addEventListener('mouseup', (e: MouseEvent) => {
-  if (currentDragHandler) {
-    currentDragHandler.onDrop(e);
-    currentDragHandler = null;
-  }
-});
 
 export class EdgeDragHandler implements IDragEventHandler {
   private static _svg: SVGElement;
@@ -42,7 +14,7 @@ export class EdgeDragHandler implements IDragEventHandler {
     params.attachee.appendChild(this._svg);
   };
 
-  public onStart = (e: MouseEvent) => {
+  public onStart = (e: MouseEvent): any => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     console.assert(el instanceof GateConnector);
     const startConnector = el as GateConnector;
@@ -58,7 +30,7 @@ export class EdgeDragHandler implements IDragEventHandler {
     return false;
   };
 
-  public onDrag = (e: MouseEvent) => {
+  public onDrag = (e: MouseEvent): any => {
     if (this._currentEdge) {
       this._currentEdge.draw({ x: e.clientX, y: e.clientY });
 
@@ -83,7 +55,7 @@ export class EdgeDragHandler implements IDragEventHandler {
     }
   };
 
-  public onDrop = (e: MouseEvent) => {
+  public onDrop = (e: MouseEvent): any => {
     if (this._currentEdge) {
       this._currentEdge.toggleIllegal(false);
       this._currentEdge.toggleLegal(false);
@@ -114,7 +86,7 @@ export class GateDragHandler implements IDragEventHandler {
   public static attach = (params: { attachee: HTMLDivElement; }) => {
   };
 
-  public onStart = (e: MouseEvent) => {
+  public onStart = (e: MouseEvent): any => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     console.assert(el instanceof Gate || el.classList.contains('gate-label'));
     this._currentGate = el instanceof Gate ? el : el.parentElement as Gate;
@@ -127,7 +99,7 @@ export class GateDragHandler implements IDragEventHandler {
     };
   };
 
-  public onDrag = (e: MouseEvent) => {
+  public onDrag = (e: MouseEvent): any => {
     if (this._currentGate) {
       let left = e.clientX + this._origin.x;
       let top = e.clientY + this._origin.y;
@@ -143,12 +115,12 @@ export class GateDragHandler implements IDragEventHandler {
       this._currentGate.style.top = top + 'px';
 
       // Propagating call to update, will update the edges
-      this._currentGate.update();
+      this._currentGate.redraw();
 
       e.preventDefault();
       return false;
     }
   };
 
-  public onDrop = (e: MouseEvent) => this.onDrag(e);
+  public onDrop = (e: MouseEvent): any => this.onDrag(e);
 }
