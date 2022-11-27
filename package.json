@@ -1,5 +1,6 @@
 {
   "name": "app-circuit-logic",
+  "description": "Logic simulator for simple circuits",
   "version": "0.0.1",
   "scripts": {
     "watch-build": "webpack --watch",
