@@ -3,37 +3,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    
+
     <title>Circuit Logic</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Fira+Sans&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Fira+Sans&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <script> var exports = {}; </script>
-    
+    <script>
+      var exports = {};
+    </script>
+
     <div class="wrapper">
+      <div class="header">
+        <div class="text">
+          <h2 onclick="window.open('https:\/\/www.github.com\/shoedler')">
+            @shoedler/
+          </h2>
+          <h1
+            onclick="window.open('https:\/\/www.github.com\/shoedler\/app-circuit-logic')"
+          >
+            app-circuit-logic
+          </h1>
+          <p>Logic simulator for simple circuits</p>
+        </div>
 
-      <div class="text">
-        <h2 onclick="window.open('https:\/\/www.github.com\/shoedler')">@shoedler/</h2>
-        <h1 onclick="window.open('https:\/\/www.github.com\/shoedler\/app-circuit-logic')">app-circuit-logic</h1>
-        <p>Logic simulator for simple circuits</p>
+        <p class="simulation-speedometer">0tps</p>
       </div>
 
-      <div class="buttons">
-        
-      </div>
-      
+      <div class="buttons"></div>
+
       <div class="sketch">
-        <div class="gates">
-        </div>
-        <div class="edges">
-        </div>
+        <div class="gates"></div>
+        <div class="edges"></div>
       </div>
-
-
     </div>
 
     <script defer type="text/javascript" src="dist/bundle.js"></script>

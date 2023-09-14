@@ -2,12 +2,12 @@
   --color-red: rgb(216 50 50);
   --color-green: rgb(86 216 50);
   --color-blue: rgb(57 123 200);
-  --color-yellow: rgb(210, 210, 49);
+  --color-yellow: rgb(210 190 49);
   --color-turquoise: rgb(57, 201, 201);
   --color-darkgreen: rgb(79, 138, 62);
   --color-gray: rgb(92, 92, 92);
 
-  --color-active: rgb(214 219 31);
+  --color-active: var(--color-yellow);
 }
 
 body {
@@ -29,6 +29,14 @@ body {
   box-sizing: border-box;
   margin-left: auto;
   margin-right: auto;
+}
+
+.header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: start;
+  width: 100%;
 }
 
 .text {
@@ -76,6 +84,13 @@ body {
   border-width: 5px;
 
   display: grid;
+}
+
+.simulation-speedometer {
+  font-family: Fira Code, monospace;
+  font-size: 0.75rem;
+  color: gray;
+  text-align: end;
 }
 
 .buttons {
@@ -149,7 +164,7 @@ svg > path.legal {
   height: fit-content;
   display: flex;
   align-items: center;
-
+  
   filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .4));
   background: var(--color-blue);
   border-radius: 5px;
@@ -169,6 +184,8 @@ svg > path.legal {
   margin: 0;
   padding-left: 2px;
   padding-right: 2px;
+  word-break: keep-all;
+  white-space: nowrap;
   -webkit-user-select: none; /* Safari */        
   -moz-user-select: none; /* Firefox */
   -ms-user-select: none; /* IE10+/Edge */
@@ -217,4 +234,15 @@ svg > path.legal {
 
 .gate-connector.legal {
   stroke: var(--color-green) ;
+}
+
+/* Specific gate styles */
+
+.gate.lamp-on {
+  filter: drop-shadow(0 0 1rem var(--color-yellow));
+  background: var(--color-yellow) !important;
+}
+
+.gate.switch:hover {
+  cursor: pointer;
 }
