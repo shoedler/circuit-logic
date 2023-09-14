@@ -93,26 +93,43 @@ body {
   text-align: end;
 }
 
-.buttons {
+.interface {
   padding-bottom: 1em;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: start;
+  width: 100%;
 }
 
-.buttons > button {
+.interface > * > button, .trashbin {
   background-color: #252525;
-  border-color: hsl(230deg 5% 9%);
+  border-color: #313131;
   border-style: solid;
   border-radius: 10px;
-  border-width: 5px;
+  border-width: 4px;
   font-family: Fira Sans, sans-serif;
+  font-size: 0.75rem;
   color: white;
   line-height: 1;
-  padding: 3px;
-  margin: 2px;
+  padding: 5px;
+  margin: 3px;
   cursor: pointer;
 }
 
-.buttons > button:hover {
-  border-style: double;
+.controls {
+  display: inline-flex;
+}
+
+.trashbin {
+  border-color: var(--color-red);
+  border-style: dotted;
+  color: gray;
+  cursor: default;
+}
+
+.interface > * > button:hover {
+  border-style: dotted;
 }
 
 .edges, .gates {

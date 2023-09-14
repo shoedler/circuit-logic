@@ -19,8 +19,11 @@ const STATE = {
     const simSpeedometer = document.querySelector(
       ".simulation-speedometer"
     ) as HTMLParagraphElement;
-    const buttonsContainer = document.querySelector(
-      ".buttons"
+    const builderButtonsContainer = document.querySelector(
+      ".builder-buttons"
+    ) as HTMLDivElement;
+    const controlsContainer = document.querySelector(
+      ".controls"
     ) as HTMLDivElement;
 
     // Register custom elements
@@ -41,8 +44,23 @@ const STATE = {
       const button = document.createElement("button");
       button.textContent = "➕ " + name;
       button.addEventListener("click", _ => gates.push(builder()));
-      buttonsContainer.appendChild(button);
+      builderButtonsContainer.appendChild(button);
     });
+
+    // Create control buttons
+    const clearButton = document.createElement("button");
+    clearButton.textContent = "🗑️ Clear circuit";
+    clearButton.addEventListener("click", _ => {
+      if (!confirm("Are you sure you want to clear the circuit?")) return;
+      gates.forEach(g => g.remove());
+      gates.length = 0;
+    });
+    controlsContainer.appendChild(clearButton);
+
+    const trashbinDiv = document.createElement("div");
+    trashbinDiv.classList.add("trashbin");
+    trashbinDiv.textContent = "Drop here to delete";
+    controlsContainer.appendChild(trashbinDiv);
 
     // Start simulation
     let simulationTimer = performance.now();
@@ -54,7 +72,7 @@ const STATE = {
       gates.forEach(g => g.run());
 
       simulationTimer = performance.now();
-    }, 1000 / 60);
+    }, 1000 / 120);
 
     // Setup drag handler
     let currentDragHandler: IDragEventHandler = null;
