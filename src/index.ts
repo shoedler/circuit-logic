@@ -1,19 +1,18 @@
-import { Gate, GateConnector, GateConnectorCollection } from "./gate";
 import {
   EdgeDragHandler,
   GateDragHandler,
   IDragEventHandler,
 } from "./dragEventHandler";
+import { Gate, GateConnector, GateConnectorCollection } from "./gate";
 
 const STATE = {
   probeGateMarker: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
   probeGateIndex: 0,
+  gates: [] as Gate[],
 };
 
 (() => {
-  document.addEventListener("DOMContentLoaded", _ => {
-    const gates: Gate[] = [];
-
+  document.addEventListener("DOMContentLoaded", (_) => {
     const gatesContainer = document.querySelector(".gates") as HTMLDivElement;
     const edgesContainer = document.querySelector(".edges") as HTMLDivElement;
     const simSpeedometer = document.querySelector(
@@ -43,17 +42,17 @@ const STATE = {
     Object.entries(gateBuilders).forEach(([name, builder]) => {
       const button = document.createElement("button");
       button.textContent = "➕ " + name;
-      button.addEventListener("click", _ => gates.push(builder()));
+      button.addEventListener("click", (_) => STATE.gates.push(builder()));
       builderButtonsContainer.appendChild(button);
     });
 
     // Create control buttons
     const clearButton = document.createElement("button");
     clearButton.textContent = "🗑️ Clear circuit";
-    clearButton.addEventListener("click", _ => {
+    clearButton.addEventListener("click", (_) => {
       if (!confirm("Are you sure you want to clear the circuit?")) return;
-      gates.forEach(g => g.remove());
-      gates.length = 0;
+      STATE.gates.forEach((g) => g.dispose());
+      STATE.gates.length = 0;
     });
     controlsContainer.appendChild(clearButton);
 
@@ -69,7 +68,7 @@ const STATE = {
       const simulationTicks = Math.round(1000 / simulationTime);
       simSpeedometer.textContent = `${simulationTicks} ticks/s`;
 
-      gates.forEach(g => g.run());
+      STATE.gates.forEach((g) => g.run());
 
       simulationTimer = performance.now();
     }, 1000 / 120);
@@ -130,6 +129,44 @@ const getGateBuilders = (
         color: "turquoise",
         logic: (ins, outs) => {
           outs[0] = ins[0] || ins[1];
+        },
+      }),
+    Not: () =>
+      new Gate({
+        bounds: container,
+        name: "NOT",
+        inputs: ["A"],
+        outputs: ["C"],
+        color: "red",
+        logic: (ins, outs) => {
+          outs[0] = !ins[0];
+        },
+      }),
+    Xor: () =>
+      new Gate({
+        bounds: container,
+        name: "XOR",
+        inputs: ["A", "B"],
+        outputs: ["C"],
+        color: "orange",
+        logic: function (ins, outs, self) {
+          outs[0] = ins[0] !== ins[1];
+        },
+      }),
+    Switch: () =>
+      new Gate({
+        bounds: container,
+        name: "Switch",
+        inputs: [],
+        outputs: ["C"],
+        color: "darkgreen",
+        init: function (self) {
+          this.clicked = false;
+          self.addEventListener("click", (_) => (this.clicked = !this.clicked));
+          self.classList.add("switch");
+        },
+        logic: function (_, outs, self) {
+          outs[0] = this.clicked;
         },
       }),
     True: () =>
@@ -195,33 +232,6 @@ const getGateBuilders = (
           }
 
           outs[0] = ins[0];
-        },
-      }),
-    Not: () =>
-      new Gate({
-        bounds: container,
-        name: "NOT",
-        inputs: ["A"],
-        outputs: ["C"],
-        color: "red",
-        logic: (ins, outs) => {
-          outs[0] = !ins[0];
-        },
-      }),
-    Switch: () =>
-      new Gate({
-        bounds: container,
-        name: "Switch",
-        inputs: [],
-        outputs: ["C"],
-        color: "gray",
-        init: function (self) {
-          this.clicked = false;
-          self.addEventListener("click", _ => (this.clicked = !this.clicked));
-          self.classList.add("switch");
-        },
-        logic: function (_, outs, self) {
-          outs[0] = this.clicked;
         },
       }),
     Lamp: () =>

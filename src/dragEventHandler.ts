@@ -1,4 +1,4 @@
-import { GateConnector, Gate, GateEdge } from "./gate";
+import { Gate, GateConnector, GateEdge } from "./gate";
 
 export interface IDragEventHandler {
   onStart: (event: MouseEvent) => any;
@@ -20,8 +20,8 @@ export class EdgeDragHandler implements IDragEventHandler {
     const startConnector = el as GateConnector;
 
     if (startConnector.type() === "inputs") {
-      startConnector.toggleIllegal(true);
-      setTimeout(() => startConnector.toggleIllegal(false), 500);
+      startConnector.illegal = true;
+      setTimeout(() => (startConnector.illegal = false), 500);
       return;
     }
 
@@ -39,17 +39,18 @@ export class EdgeDragHandler implements IDragEventHandler {
         e.clientX,
         e.clientY
       );
+
       if (potentialEndConnector instanceof GateConnector) {
         if (potentialEndConnector.type() === "outputs") {
-          this._currentEdge.toggleIllegal(true);
-          this._currentEdge.toggleLegal(false);
+          this._currentEdge.illegal = true;
+          this._currentEdge.legal = false;
         } else if (potentialEndConnector.type() === "inputs") {
-          this._currentEdge.toggleIllegal(false);
-          this._currentEdge.toggleLegal(true);
+          this._currentEdge.illegal = false;
+          this._currentEdge.legal = true;
         }
       } else {
-        this._currentEdge.toggleIllegal(false);
-        this._currentEdge.toggleLegal(false);
+        this._currentEdge.illegal = false;
+        this._currentEdge.legal = false;
       }
 
       return false;
@@ -58,13 +59,14 @@ export class EdgeDragHandler implements IDragEventHandler {
 
   public onDrop = (e: MouseEvent): any => {
     if (this._currentEdge) {
-      this._currentEdge.toggleIllegal(false);
-      this._currentEdge.toggleLegal(false);
+      this._currentEdge.illegal = false;
+      this._currentEdge.legal = false;
 
       const potentialEndConnector = document.elementFromPoint(
         e.clientX,
         e.clientY
       );
+
       if (potentialEndConnector instanceof GateConnector) {
         if (potentialEndConnector.type() === "outputs") {
           this._currentEdge.dispose();
@@ -86,7 +88,6 @@ export class EdgeDragHandler implements IDragEventHandler {
 export class GateDragHandler implements IDragEventHandler {
   private _origin: { x: number; y: number };
   private _currentGate: Gate;
-  public static attach = (params: { attachee: HTMLDivElement }) => {};
 
   public onStart = (e: MouseEvent): any => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -106,13 +107,6 @@ export class GateDragHandler implements IDragEventHandler {
       let left = e.clientX + this._origin.x;
       let top = e.clientY + this._origin.y;
 
-      // // Bind to the bounds of the sketch
-      // if (left < 0) left = 0;
-      // if (top < 0) top = 0;
-      // if (left > bounds.clientWidth - gate.clientWidth) left = bounds.clientWidth - gate.clientWidth;
-      // if (top > bounds.clientHeight - gate.clientHeight) top = bounds.clientHeight - gate.clientHeight;
-      // // left %= bounds.clientWidth - gate.clientWidth;
-      // // top %= bounds.clientHeight - gate.clientHeight;
       this._currentGate.style.left = left + "px";
       this._currentGate.style.top = top + "px";
 

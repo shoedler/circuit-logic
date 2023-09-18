@@ -23,6 +23,7 @@ export interface GateParams {
   outputs?: string[];
   color?:
     | "red"
+    | "orange"
     | "green"
     | "yellow"
     | "blue"
@@ -120,22 +121,25 @@ export class GateConnectorCollection
     this.type = type;
     owner.appendChild(this);
 
-    connectors.forEach(c => this._connectors.push(new GateConnector(this, c)));
+    connectors.forEach((c) =>
+      this._connectors.push(new GateConnector(this, c))
+    );
   }
 
-  public toBoolArray = (): boolean[] => this._connectors.map(c => c.isActive);
+  public toBoolArray = (): boolean[] => this._connectors.map((c) => c.state);
+
   public fromBoolArray = (values: boolean[]): void => {
     if (this.type === "inputs")
       throw new Error("Cannot set input values on an output collection");
-    this._connectors.forEach((c, i) => c.toggleActive(values[i]));
+    this._connectors.forEach((c, i) => (c.state = values[i]));
   };
 
   public redraw = (): void => {
-    this._connectors.forEach(c => c.redraw());
+    this._connectors.forEach((c) => c.redraw());
   };
 
   public dispose = (): void => {
-    this._connectors.forEach(c => c.dispose());
+    this._connectors.forEach((c) => c.dispose());
     this.remove();
   };
 }
@@ -146,10 +150,21 @@ export class GateConnector
 {
   private readonly _name: string;
   private readonly _edges: GateEdge[] = [];
-  public get isActive(): boolean {
-    return this._edges.some(edge => edge.isActive);
-  }
   public readonly type: () => "inputs" | "outputs";
+
+  public get state(): boolean {
+    return this._edges.some((edge) => edge.state);
+  }
+  public set state(v: boolean) {
+    if (this.type() === "inputs")
+      throw new Error("Cannot set state of input connector");
+    this._edges.forEach((e) => (e.state = v));
+  }
+
+  public set illegal(v: boolean) {
+    v ? this.classList.add("illegal") : this.classList.remove("illegal");
+  }
+
   constructor(parent: GateConnectorCollection, name: string) {
     super();
 
@@ -161,14 +176,6 @@ export class GateConnector
 
     this._name = name;
   }
-
-  public toggleIllegal = (illegal: boolean): void =>
-    illegal ? this.classList.add("illegal") : this.classList.remove("illegal");
-  public toggleActive = (active: boolean): void => {
-    if (this.type() === "inputs")
-      throw new Error("Cannot toggle active state of input connector");
-    this._edges.forEach(e => e.toggleActive(active));
-  };
 
   public newEdge = (parent: SVGElement): GateEdge => {
     const edge = new GateEdge({ parent, start: this });
@@ -189,22 +196,20 @@ export class GateConnector
   };
 
   public redraw = (): void => {
-    this._edges.forEach(e => e.redraw());
+    this._edges.forEach((e) => e.redraw());
   };
 
   public dispose = (): void => {
-    this._edges.forEach(e => e.dispose());
+    this._edges.forEach((e) => e.dispose());
     this.remove();
   };
 }
 
 export class GateEdge implements IDisposable, IRedrawable {
   public readonly path: SVGPathElement;
-  public readonly start: GateConnector;
   private readonly _svg: Omit<SVGElement, "remove">;
-  public get isActive(): boolean {
-    return this.path.classList.contains("active");
-  }
+  public readonly start: GateConnector;
+
   private _end: GateConnector;
   public get end(): GateConnector {
     return this._end;
@@ -214,11 +219,32 @@ export class GateEdge implements IDisposable, IRedrawable {
     this.path.classList.remove("drawing");
   }
 
+  private _state: boolean = false;
+  public get state(): boolean {
+    return this._state;
+  }
+  public set state(v: boolean) {
+    this._state = v;
+    v
+      ? this.path.classList.add("active")
+      : this.path.classList.remove("active");
+  }
+
+  public set illegal(v: boolean) {
+    v
+      ? this.path.classList.add("illegal")
+      : this.path.classList.remove("illegal");
+  }
+
+  public set legal(v: boolean) {
+    v ? this.path.classList.add("legal") : this.path.classList.remove("legal");
+  }
+
   constructor(params: { parent: SVGElement; start: GateConnector }) {
     this.start = params.start;
     this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     this.path.classList.add("drawing");
-    this.path.addEventListener("dblclick", _ => {
+    this.path.addEventListener("dblclick", (_) => {
       if (this.end) this.end.removeEdge(this);
       if (this.start) this.start.removeEdge(this);
       this.dispose();
@@ -226,19 +252,6 @@ export class GateEdge implements IDisposable, IRedrawable {
     this._svg = params.parent;
     this._svg.appendChild(this.path);
   }
-
-  public toggleIllegal = (illegal: boolean): void =>
-    illegal
-      ? this.path.classList.add("illegal")
-      : this.path.classList.remove("illegal");
-  public toggleLegal = (legal: boolean): void =>
-    legal
-      ? this.path.classList.add("legal")
-      : this.path.classList.remove("legal");
-  public toggleActive = (active: boolean): void =>
-    active
-      ? this.path.classList.add("active")
-      : this.path.classList.remove("active");
 
   public draw = (pos?: { x: number; y: number }): void => {
     const offset = this._svg.getBoundingClientRect();
