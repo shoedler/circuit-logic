@@ -1,4 +1,4 @@
-import { Gate, GateConnector, GateEdge } from "./gate";
+import { Connector, Edge, Gate } from "./gate";
 
 export interface IDragEventHandler {
   onStart: (event: MouseEvent) => any;
@@ -8,7 +8,7 @@ export interface IDragEventHandler {
 
 export class EdgeDragHandler implements IDragEventHandler {
   private static _svg: SVGElement;
-  private _currentEdge: GateEdge;
+  private _currentEdge: Edge;
   public static attach = (params: { attachee: HTMLDivElement }) => {
     this._svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     params.attachee.appendChild(this._svg);
@@ -16,8 +16,8 @@ export class EdgeDragHandler implements IDragEventHandler {
 
   public onStart = (e: MouseEvent): any => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
-    console.assert(el instanceof GateConnector);
-    const startConnector = el as GateConnector;
+    console.assert(el instanceof Connector);
+    const startConnector = el as Connector;
 
     if (startConnector.type() === "inputs") {
       startConnector.illegal = true;
@@ -40,7 +40,7 @@ export class EdgeDragHandler implements IDragEventHandler {
         e.clientY
       );
 
-      if (potentialEndConnector instanceof GateConnector) {
+      if (potentialEndConnector instanceof Connector) {
         if (potentialEndConnector.type() === "outputs") {
           this._currentEdge.illegal = true;
           this._currentEdge.legal = false;
@@ -67,7 +67,7 @@ export class EdgeDragHandler implements IDragEventHandler {
         e.clientY
       );
 
-      if (potentialEndConnector instanceof GateConnector) {
+      if (potentialEndConnector instanceof Connector) {
         if (potentialEndConnector.type() === "outputs") {
           this._currentEdge.dispose();
           return;

@@ -6,6 +6,10 @@ interface IRedrawable {
   redraw(): void;
 }
 
+interface IPackable {
+  pack(): void;
+}
+
 /**
  * Construction parameters for a gate.
  * @param bounds The parent html element to which the gate will be appended.
@@ -34,22 +38,35 @@ export interface GateParams {
   logic: (inputs: boolean[], outputs: boolean[], self?: Gate) => void;
 }
 
-export class Gate extends HTMLDivElement implements IDisposable, IRedrawable {
+export enum GateType {
+  input,
+  output,
+}
+
+export class Gate
+  extends HTMLDivElement
+  implements IDisposable, IRedrawable, IPackable
+{
+  public gateType?: GateType; // optional
   private static _gateCount = 0;
   private readonly _inputs: GateConnectorCollection;
   private readonly _name: HTMLParagraphElement;
   private readonly _outputs: GateConnectorCollection;
-  private readonly _logic: (
-    inputs: boolean[],
-    outputs: boolean[],
-    self?: Gate
-  ) => void;
+  private _logic: (inputs: boolean[], outputs: boolean[], self?: Gate) => void;
 
   public get name(): string {
     return this._name.innerText;
   }
   private set name(v: string) {
     this._name.innerText = v;
+  }
+
+  public get inputs(): GateConnectorCollection {
+    return this._inputs;
+  }
+
+  public get outputs(): GateConnectorCollection {
+    return this._outputs;
   }
 
   constructor(params: GateParams) {
@@ -106,13 +123,18 @@ export class Gate extends HTMLDivElement implements IDisposable, IRedrawable {
     this._outputs.dispose();
     this.remove();
   };
+
+  public pack = (): void => {
+    this._inputs.pack();
+    this._outputs.pack();
+  };
 }
 
 export class GateConnectorCollection
   extends HTMLDivElement
-  implements IDisposable, IRedrawable
+  implements IDisposable, IRedrawable, IPackable
 {
-  private readonly _connectors: GateConnector[] = [];
+  private readonly _connectors: Connector[] = [];
   public readonly type: "inputs" | "outputs";
   constructor(owner: Gate, type: "inputs" | "outputs", connectors: string[]) {
     super();
@@ -121,9 +143,7 @@ export class GateConnectorCollection
     this.type = type;
     owner.appendChild(this);
 
-    connectors.forEach((c) =>
-      this._connectors.push(new GateConnector(this, c))
-    );
+    connectors.forEach((c) => this._connectors.push(new Connector(this, c)));
   }
 
   public toBoolArray = (): boolean[] => this._connectors.map((c) => c.state);
@@ -142,23 +162,26 @@ export class GateConnectorCollection
     this._connectors.forEach((c) => c.dispose());
     this.remove();
   };
+
+  public pack = (): void => {
+    this._connectors.forEach((c) => c.pack());
+  };
 }
 
-export class GateConnector
+export class Connector
   extends HTMLDivElement
-  implements IDisposable, IRedrawable
+  implements IDisposable, IRedrawable, IPackable
 {
-  private readonly _name: string;
-  private readonly _edges: GateEdge[] = [];
   public readonly type: () => "inputs" | "outputs";
+  public readonly name: string;
+  private _connections: (Edge | Connector)[] = []; // Can be a connector because when packing, edges are removed
 
   public get state(): boolean {
-    return this._edges.some((edge) => edge.state);
+    return this._connections.some((edge) => edge.state);
   }
   public set state(v: boolean) {
-    if (this.type() === "inputs")
-      throw new Error("Cannot set state of input connector");
-    this._edges.forEach((e) => (e.state = v));
+    if (this.type() === "inputs") return;
+    this._connections.forEach((e) => (e.state = v));
   }
 
   public set illegal(v: boolean) {
@@ -174,47 +197,64 @@ export class GateConnector
       return parent.type;
     };
 
-    this._name = name;
+    this.name = name;
   }
 
-  public newEdge = (parent: SVGElement): GateEdge => {
-    const edge = new GateEdge({ parent, start: this });
-    this._edges.push(edge);
+  public newEdge = (parent: SVGElement): Edge => {
+    const edge = new Edge({ parent, start: this });
+    this._connections.push(edge);
     return edge;
   };
 
-  public endEdge = (end: GateEdge): void => {
+  public endEdge = (end: Edge): void => {
     end.end = this;
-    this._edges.push(end);
+    this._connections.push(end);
   };
 
-  public removeEdge = (edge: GateEdge): void => {
-    const index = this._edges.indexOf(edge);
+  public removeEdge = (edge: Edge): void => {
+    const index = this._connections.indexOf(edge);
     if (index > -1) {
-      this._edges.splice(index, 1);
+      this._connections.splice(index, 1);
     }
   };
 
   public redraw = (): void => {
-    this._edges.forEach((e) => e.redraw());
+    this._connections.forEach((e) => e.redraw());
   };
 
   public dispose = (): void => {
-    this._edges.forEach((e) => e.dispose());
+    this._connections.forEach((e) => e.dispose());
     this.remove();
+  };
+
+  public pack = (): void => {
+    const connectors: Connector[] = [];
+
+    this._connections.forEach((e) => {
+      console.assert(e instanceof Edge, "Expected edge");
+      const edge = e as Edge;
+      if (edge.start === this) {
+        connectors.push(edge.end);
+      } else {
+        connectors.push(edge.start);
+      }
+      edge.dispose();
+    });
+
+    this._connections = connectors;
   };
 }
 
-export class GateEdge implements IDisposable, IRedrawable {
+export class Edge implements IDisposable, IRedrawable {
   public readonly path: SVGPathElement;
   private readonly _svg: Omit<SVGElement, "remove">;
-  public readonly start: GateConnector;
+  public readonly start: Connector;
 
-  private _end: GateConnector;
-  public get end(): GateConnector {
+  private _end: Connector;
+  public get end(): Connector {
     return this._end;
   }
-  public set end(v: GateConnector) {
+  public set end(v: Connector) {
     this._end = v;
     this.path.classList.remove("drawing");
   }
@@ -240,7 +280,7 @@ export class GateEdge implements IDisposable, IRedrawable {
     v ? this.path.classList.add("legal") : this.path.classList.remove("legal");
   }
 
-  constructor(params: { parent: SVGElement; start: GateConnector }) {
+  constructor(params: { parent: SVGElement; start: Connector }) {
     this.start = params.start;
     this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     this.path.classList.add("drawing");

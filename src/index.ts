@@ -3,12 +3,26 @@ import {
   GateDragHandler,
   IDragEventHandler,
 } from "./dragEventHandler";
-import { Gate, GateConnector, GateConnectorCollection } from "./gate";
+import {
+  Connector,
+  Edge,
+  Gate,
+  GateConnectorCollection,
+  GateType,
+} from "./gate";
+
+const CONFIG = {
+  probeGateMarkers: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
+  inputNames: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+  outputNames: ["Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"],
+};
 
 const STATE = {
-  probeGateMarker: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
   probeGateIndex: 0,
+  inputGateIndex: 0,
+  outputGateIndex: 0,
   gates: [] as Gate[],
+  edges: [] as Edge[],
 };
 
 (() => {
@@ -27,7 +41,7 @@ const STATE = {
 
     // Register custom elements
     customElements.define("cl-gate", Gate, { extends: "div" });
-    customElements.define("cl-gate-connector", GateConnector, {
+    customElements.define("cl-gate-connector", Connector, {
       extends: "div",
     });
     customElements.define(
@@ -56,6 +70,55 @@ const STATE = {
     });
     controlsContainer.appendChild(clearButton);
 
+    const packButton = document.createElement("button");
+    packButton.textContent = "📦 Pack circuit";
+    packButton.addEventListener("click", (_) => {
+      const inputs = STATE.gates.filter((g) => g.gateType === GateType.input);
+      const outputs = STATE.gates.filter((g) => g.gateType === GateType.output);
+
+      if (!inputs.length && !outputs.length) {
+        alert("Cannot pack circuit with no inputs or outputs");
+        return;
+      }
+
+      STATE.gates.forEach((g) => {
+        g.pack();
+        g.remove();
+      });
+
+      STATE.gates.length = 0;
+
+      const packedGate = new Gate({
+        bounds: gatesContainer,
+        name: "Packed",
+        inputs: inputs.map((i) => i.name),
+        outputs: outputs.map((o) => o.name),
+        color: "gray",
+        init: function (self) {
+          this.packedGates = [];
+          Object.assign(this.packedGates, STATE.gates); // Keep reference to gates
+          this.once = false;
+        },
+        logic: function (ins, outs, self) {
+          for (let i = 0; i < ins.length; i++) {
+            const packedInputGate = inputs[i];
+            packedInputGate.outputs.fromBoolArray([ins[i]]);
+          }
+
+          // Run the packed gates
+          this.packedGates.forEach((g: Gate) => g.run());
+
+          for (let i = 0; i < outs.length; i++) {
+            const packedOutputGate = outputs[i];
+            outs[i] = packedOutputGate.inputs.toBoolArray()[0];
+          }
+        },
+      });
+
+      STATE.gates.push(packedGate);
+    });
+    controlsContainer.appendChild(packButton);
+
     const trashbinDiv = document.createElement("div");
     trashbinDiv.classList.add("trashbin");
     trashbinDiv.textContent = "Drop here to delete";
@@ -79,7 +142,7 @@ const STATE = {
     document.addEventListener("mousedown", (e: MouseEvent) => {
       const element = document.elementFromPoint(e.clientX, e.clientY);
 
-      if (element instanceof GateConnector) {
+      if (element instanceof Connector) {
         currentDragHandler = new EdgeDragHandler();
       } else if (
         element instanceof Gate ||
@@ -206,8 +269,8 @@ const getGateBuilders = (
       new Gate({
         bounds: container,
         name:
-          STATE.probeGateMarker[
-            STATE.probeGateIndex++ % STATE.probeGateMarker.length
+          CONFIG.probeGateMarkers[
+            STATE.probeGateIndex++ % CONFIG.probeGateMarkers.length
           ] + "Probe",
         inputs: ["A"],
         outputs: ["C"],
@@ -249,6 +312,34 @@ const getGateBuilders = (
             this.on = ins[0];
             self.classList.toggle("lamp-on", this.on);
           }
+        },
+      }),
+    Input: () =>
+      new Gate({
+        bounds: container,
+        name: "Input " + CONFIG.inputNames[STATE.inputGateIndex++],
+        inputs: [],
+        outputs: ["C"],
+        color: "gray",
+        init: function (self) {
+          self.gateType = GateType.input;
+        },
+        logic: function (_, outs, self) {
+          // Nothing to do
+        },
+      }),
+    Output: () =>
+      new Gate({
+        bounds: container,
+        name: "Output " + CONFIG.outputNames[STATE.outputGateIndex++],
+        inputs: ["A"],
+        outputs: [],
+        color: "gray",
+        init: function (self) {
+          self.gateType = GateType.output;
+        },
+        logic: function (ins, _, self) {
+          // Nothing to do
         },
       }),
   };
