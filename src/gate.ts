@@ -49,9 +49,9 @@ export class Gate
 {
   public gateType?: GateType; // optional
   private static _gateCount = 0;
-  private readonly _inputs: GateConnectorCollection;
+  private readonly _inputs: ConnectorCollection;
   private readonly _name: HTMLParagraphElement;
-  private readonly _outputs: GateConnectorCollection;
+  private readonly _outputs: ConnectorCollection;
   private _logic: (inputs: boolean[], outputs: boolean[], self?: Gate) => void;
 
   public get name(): string {
@@ -61,11 +61,11 @@ export class Gate
     this._name.innerText = v;
   }
 
-  public get inputs(): GateConnectorCollection {
+  public get inputs(): ConnectorCollection {
     return this._inputs;
   }
 
-  public get outputs(): GateConnectorCollection {
+  public get outputs(): ConnectorCollection {
     return this._outputs;
   }
 
@@ -86,7 +86,7 @@ export class Gate
     }
 
     if (params.inputs) {
-      this._inputs = new GateConnectorCollection(this, "inputs", params.inputs);
+      this._inputs = new ConnectorCollection(this, "inputs", params.inputs);
     }
 
     this._name = document.createElement("p");
@@ -94,11 +94,7 @@ export class Gate
     this.appendChild(this._name);
 
     if (params.outputs) {
-      this._outputs = new GateConnectorCollection(
-        this,
-        "outputs",
-        params.outputs
-      );
+      this._outputs = new ConnectorCollection(this, "outputs", params.outputs);
     }
 
     this.name = params.name;
@@ -127,15 +123,17 @@ export class Gate
   public pack = (): void => {
     this._inputs.pack();
     this._outputs.pack();
+    this.remove();
   };
 }
 
-export class GateConnectorCollection
+export class ConnectorCollection
   extends HTMLDivElement
   implements IDisposable, IRedrawable, IPackable
 {
   private readonly _connectors: Connector[] = [];
   public readonly type: "inputs" | "outputs";
+
   constructor(owner: Gate, type: "inputs" | "outputs", connectors: string[]) {
     super();
 
@@ -143,10 +141,10 @@ export class GateConnectorCollection
     this.type = type;
     owner.appendChild(this);
 
-    connectors.forEach((c) => this._connectors.push(new Connector(this, c)));
+    connectors.forEach(c => this._connectors.push(new Connector(this, c)));
   }
 
-  public toBoolArray = (): boolean[] => this._connectors.map((c) => c.state);
+  public toBoolArray = (): boolean[] => this._connectors.map(c => c.state);
 
   public fromBoolArray = (values: boolean[]): void => {
     if (this.type === "inputs")
@@ -155,16 +153,16 @@ export class GateConnectorCollection
   };
 
   public redraw = (): void => {
-    this._connectors.forEach((c) => c.redraw());
+    this._connectors.forEach(c => c.redraw());
   };
 
   public dispose = (): void => {
-    this._connectors.forEach((c) => c.dispose());
+    this._connectors.forEach(c => c.dispose());
     this.remove();
   };
 
   public pack = (): void => {
-    this._connectors.forEach((c) => c.pack());
+    this._connectors.forEach(c => c.pack());
   };
 }
 
@@ -174,21 +172,21 @@ export class Connector
 {
   public readonly type: () => "inputs" | "outputs";
   public readonly name: string;
-  private _connections: (Edge | Connector)[] = []; // Can be a connector because when packing, edges are removed
+  private _connections: Edge[] = []; // Can be a connector because when packing, edges are removed
 
   public get state(): boolean {
-    return this._connections.some((edge) => edge.state);
+    return this._connections.some(edge => edge.state);
   }
   public set state(v: boolean) {
     if (this.type() === "inputs") return;
-    this._connections.forEach((e) => (e.state = v));
+    this._connections.forEach(e => (e.state = v));
   }
 
   public set illegal(v: boolean) {
     v ? this.classList.add("illegal") : this.classList.remove("illegal");
   }
 
-  constructor(parent: GateConnectorCollection, name: string) {
+  constructor(parent: ConnectorCollection, name: string) {
     super();
 
     this.classList.add("gate-connector");
@@ -219,29 +217,16 @@ export class Connector
   };
 
   public redraw = (): void => {
-    this._connections.forEach((e) => e.redraw());
+    this._connections.forEach(e => e.redraw());
   };
 
   public dispose = (): void => {
-    this._connections.forEach((e) => e.dispose());
+    this._connections.forEach(e => e.dispose());
     this.remove();
   };
 
   public pack = (): void => {
-    const connectors: Connector[] = [];
-
-    this._connections.forEach((e) => {
-      console.assert(e instanceof Edge, "Expected edge");
-      const edge = e as Edge;
-      if (edge.start === this) {
-        connectors.push(edge.end);
-      } else {
-        connectors.push(edge.start);
-      }
-      edge.dispose();
-    });
-
-    this._connections = connectors;
+    this._connections.forEach(e => e.remove());
   };
 }
 
@@ -284,7 +269,7 @@ export class Edge implements IDisposable, IRedrawable {
     this.start = params.start;
     this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     this.path.classList.add("drawing");
-    this.path.addEventListener("dblclick", (_) => {
+    this.path.addEventListener("dblclick", _ => {
       if (this.end) this.end.removeEdge(this);
       if (this.start) this.start.removeEdge(this);
       this.dispose();
@@ -367,6 +352,10 @@ export class Edge implements IDisposable, IRedrawable {
 
   public redraw = (): void => {
     this.draw();
+  };
+
+  public remove = (): void => {
+    this.path.remove();
   };
 
   public dispose = (): void => {

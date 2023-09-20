@@ -3,13 +3,7 @@ import {
   GateDragHandler,
   IDragEventHandler,
 } from "./dragEventHandler";
-import {
-  Connector,
-  Edge,
-  Gate,
-  GateConnectorCollection,
-  GateType,
-} from "./gate";
+import { Connector, Gate, ConnectorCollection, GateType } from "./gate";
 
 const CONFIG = {
   probeGateMarkers: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
@@ -22,11 +16,26 @@ const STATE = {
   inputGateIndex: 0,
   outputGateIndex: 0,
   gates: [] as Gate[],
-  edges: [] as Edge[],
 };
 
+const getSuffix = (index: number, length: number) =>
+  Math.floor(index / length) > 0 ? Math.floor(index / length) : "";
+
+const nextProbeGateMarker = () =>
+  CONFIG.probeGateMarkers[
+    STATE.probeGateIndex++ % CONFIG.probeGateMarkers.length
+  ] + getSuffix(STATE.probeGateIndex, CONFIG.probeGateMarkers.length);
+
+const nextInputGateId = () =>
+  CONFIG.inputNames[STATE.inputGateIndex++ % CONFIG.inputNames.length] +
+  getSuffix(STATE.inputGateIndex, CONFIG.inputNames.length);
+
+const nextOutputGateId = () =>
+  CONFIG.outputNames[STATE.outputGateIndex++ % CONFIG.outputNames.length] +
+  getSuffix(STATE.outputGateIndex, CONFIG.outputNames.length);
+
 (() => {
-  document.addEventListener("DOMContentLoaded", (_) => {
+  document.addEventListener("DOMContentLoaded", _ => {
     const gatesContainer = document.querySelector(".gates") as HTMLDivElement;
     const edgesContainer = document.querySelector(".edges") as HTMLDivElement;
     const simSpeedometer = document.querySelector(
@@ -44,11 +53,9 @@ const STATE = {
     customElements.define("cl-gate-connector", Connector, {
       extends: "div",
     });
-    customElements.define(
-      "cl-gate-connector-collection",
-      GateConnectorCollection,
-      { extends: "div" }
-    );
+    customElements.define("cl-gate-connector-collection", ConnectorCollection, {
+      extends: "div",
+    });
 
     // Create gate builder buttons
     const gateBuilders = getGateBuilders(gatesContainer);
@@ -56,48 +63,46 @@ const STATE = {
     Object.entries(gateBuilders).forEach(([name, builder]) => {
       const button = document.createElement("button");
       button.textContent = "➕ " + name;
-      button.addEventListener("click", (_) => STATE.gates.push(builder()));
+      button.addEventListener("click", _ => STATE.gates.push(builder()));
       builderButtonsContainer.appendChild(button);
     });
 
     // Create control buttons
     const clearButton = document.createElement("button");
     clearButton.textContent = "🗑️ Clear circuit";
-    clearButton.addEventListener("click", (_) => {
+    clearButton.addEventListener("click", _ => {
       if (!confirm("Are you sure you want to clear the circuit?")) return;
-      STATE.gates.forEach((g) => g.dispose());
+      STATE.gates.forEach(g => g.dispose());
       STATE.gates.length = 0;
     });
     controlsContainer.appendChild(clearButton);
 
     const packButton = document.createElement("button");
     packButton.textContent = "📦 Pack circuit";
-    packButton.addEventListener("click", (_) => {
-      const inputs = STATE.gates.filter((g) => g.gateType === GateType.input);
-      const outputs = STATE.gates.filter((g) => g.gateType === GateType.output);
+    packButton.addEventListener("click", _ => {
+      const inputs = STATE.gates.filter(g => g.gateType === GateType.input);
+      const outputs = STATE.gates.filter(g => g.gateType === GateType.output);
 
       if (!inputs.length && !outputs.length) {
         alert("Cannot pack circuit with no inputs or outputs");
         return;
       }
 
-      STATE.gates.forEach((g) => {
-        g.pack();
-        g.remove();
-      });
-
+      // Remove all gates from the circuit, but keep a reference to them for the new packed gate
+      const packedGates: Gate[] = [];
+      Object.assign(packedGates, STATE.gates); // Keep reference to gates
+      STATE.gates.forEach(g => g.pack());
       STATE.gates.length = 0;
 
+      // Create the packed gate
       const packedGate = new Gate({
         bounds: gatesContainer,
         name: "Packed",
-        inputs: inputs.map((i) => i.name),
-        outputs: outputs.map((o) => o.name),
+        inputs: inputs.map(i => i.name),
+        outputs: outputs.map(o => o.name),
         color: "gray",
         init: function (self) {
-          this.packedGates = [];
-          Object.assign(this.packedGates, STATE.gates); // Keep reference to gates
-          this.once = false;
+          this.packedGates = packedGates;
         },
         logic: function (ins, outs, self) {
           for (let i = 0; i < ins.length; i++) {
@@ -131,7 +136,7 @@ const STATE = {
       const simulationTicks = Math.round(1000 / simulationTime);
       simSpeedometer.textContent = `${simulationTicks} ticks/s`;
 
-      STATE.gates.forEach((g) => g.run());
+      STATE.gates.forEach(g => g.run());
 
       simulationTimer = performance.now();
     }, 1000 / 120);
@@ -225,7 +230,7 @@ const getGateBuilders = (
         color: "darkgreen",
         init: function (self) {
           this.clicked = false;
-          self.addEventListener("click", (_) => (this.clicked = !this.clicked));
+          self.addEventListener("click", _ => (this.clicked = !this.clicked));
           self.classList.add("switch");
         },
         logic: function (_, outs, self) {
@@ -268,10 +273,7 @@ const getGateBuilders = (
     Probe: () =>
       new Gate({
         bounds: container,
-        name:
-          CONFIG.probeGateMarkers[
-            STATE.probeGateIndex++ % CONFIG.probeGateMarkers.length
-          ] + "Probe",
+        name: nextProbeGateMarker() + " Probe",
         inputs: ["A"],
         outputs: ["C"],
         color: "gray",
@@ -317,7 +319,7 @@ const getGateBuilders = (
     Input: () =>
       new Gate({
         bounds: container,
-        name: "Input " + CONFIG.inputNames[STATE.inputGateIndex++],
+        name: "In " + nextInputGateId(),
         inputs: [],
         outputs: ["C"],
         color: "gray",
@@ -331,7 +333,7 @@ const getGateBuilders = (
     Output: () =>
       new Gate({
         bounds: container,
-        name: "Output " + CONFIG.outputNames[STATE.outputGateIndex++],
+        name: "Out " + nextOutputGateId(),
         inputs: ["A"],
         outputs: [],
         color: "gray",
