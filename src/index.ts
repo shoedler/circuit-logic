@@ -88,7 +88,7 @@ class State {
     Ui.registerCustomElements();
 
     // Create gate builder buttons
-    Object.entries(DEFAULT_GATES_BUILDERS).forEach(([name, builder]) =>
+    Object.entries(DEFAULT_GATE_BUILDERS).forEach(([name, builder]) =>
       addGateBuilderButton(name, builder)
     );
 
@@ -112,15 +112,30 @@ class State {
 
     // Start simulation
     let simulationTimer = performance.now();
-    setInterval(() => {
-      const simulationTime = performance.now() - simulationTimer;
-      const simulationTicks = Math.round(1000 / simulationTime);
-      Ui.simSpeedParagraph.textContent = `${simulationTicks} ticks/s`;
+    let measurements: number[] = [];
+    let smoothingTimer = performance.now();
 
+    const smoothingTimeMs = 100;
+    const targetSimulationTimeMs = 1000 / 200;
+
+    setInterval(() => {
+      const simulationTimeMs = performance.now() - simulationTimer;
+      const simulationTicks = Math.round(1000 / simulationTimeMs);
+      measurements.push(simulationTicks);
+
+      if (smoothingTimer + smoothingTimeMs < performance.now()) {
+        Ui.simSpeedParagraph.textContent = `${Math.round(
+          measurements.reduce((a, b) => a + b, 0) / measurements.length
+        )} ticks/s`;
+        measurements = [];
+        smoothingTimer = performance.now();
+      }
+
+      // Run simulation
       State.gates.forEach(g => g.run());
 
       simulationTimer = performance.now();
-    }, 1000 / 120);
+    }, targetSimulationTimeMs);
 
     // Setup drag handler
     document.addEventListener("mousedown", (e: MouseEvent) => {
@@ -151,7 +166,7 @@ class State {
       }
     });
 
-    EdgeDragHandler.attach({ attachee: Ui.edgesContainer });
+    EdgeDragHandler.attach({ parent: Ui.edgesContainer });
   });
 })();
 
@@ -165,8 +180,8 @@ const addGateBuilderButton = (name: string, builder: () => Gate) => {
   return button;
 };
 
-const clearCircuit = () => {
-  if (!confirm("Are you sure you want to clear the circuit?")) return;
+const clearCircuit = (force: boolean = false) => {
+  if (!force && !confirm("Are you sure you want to clear the circuit?")) return;
   State.gates.forEach(g => g.dispose());
   State.gates.length = 0;
 };
@@ -223,12 +238,13 @@ const packCircuit = () => {
     )
       return;
 
-    State.gates.forEach(g => g.dispose());
-    State.gates.length = 0;
+    clearCircuit(true);
 
     packedGates.forEach(g => Ui.gatesContainer.appendChild(g));
     State.gates.push(...packedGates);
 
+    // TODO: Refactor so that we don't have to access private members via "as any".
+    //       Maybe add an interface "IEdgeRetrievable" with a method "getEdges(): Edge[]"?
     const edges = new Set<Edge>();
     packedGates.forEach(g => {
       [
@@ -241,13 +257,15 @@ const packCircuit = () => {
       });
     });
 
+    // TODO: Refactor so that we don't have to access private members via "as any".
+    //       Getter for "_svg"?
     Array.from(edges).forEach(e =>
       (EdgeDragHandler as any)["_svg"].appendChild(e.path)
     );
   });
 };
 
-const DEFAULT_GATES_BUILDERS = {
+const DEFAULT_GATE_BUILDERS = {
   And: () =>
     new Gate({
       bounds: Ui.gatesContainer,
@@ -318,6 +336,18 @@ const DEFAULT_GATES_BUILDERS = {
         outs[0] = true;
       },
     }),
+  "1Hz Clock": () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Clock",
+      info: "1Hz",
+      inputs: [],
+      outputs: ["C"],
+      color: "darkgreen",
+      logic: (ins, outs) => {
+        outs[0] = new Date().getMilliseconds() % 1000 < 500;
+      },
+    }),
   "2Hz Clock": () =>
     new Gate({
       bounds: Ui.gatesContainer,
@@ -330,16 +360,16 @@ const DEFAULT_GATES_BUILDERS = {
         outs[0] = new Date().getMilliseconds() % 500 < 250;
       },
     }),
-  "1Hz Clock": () =>
+  "10Hz Clock": () =>
     new Gate({
       bounds: Ui.gatesContainer,
       name: "Clock",
-      info: "1Hz",
+      info: "10Hz",
       inputs: [],
       outputs: ["C"],
       color: "darkgreen",
       logic: (ins, outs) => {
-        outs[0] = new Date().getMilliseconds() % 1000 < 500;
+        outs[0] = new Date().getMilliseconds() % 100 < 50;
       },
     }),
   Probe: () =>
@@ -390,6 +420,27 @@ const DEFAULT_GATES_BUILDERS = {
         if (ins[0] !== this.on) {
           this.on = ins[0];
           self.classList.toggle("lamp-on", this.on);
+        }
+      },
+    }),
+  Counter: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Counter",
+      info: "0",
+      inputs: ["A"],
+      outputs: [],
+      color: "gray",
+      init: function (self) {
+        this.on = false;
+      },
+      logic: function (ins, _, self) {
+        if (ins[0] !== this.on) {
+          this.on = ins[0];
+
+          if (this.on) {
+            self.info = (parseInt(self.info) + 1).toString();
+          }
         }
       },
     }),

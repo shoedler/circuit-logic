@@ -11,9 +11,9 @@ export interface IDragEventHandler {
 export class EdgeDragHandler implements IDragEventHandler {
   private static _svg: SVGElement;
   private _currentEdge: Edge;
-  public static attach = (params: { attachee: HTMLDivElement }) => {
+  public static attach = (params: { parent: HTMLDivElement }) => {
     this._svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    params.attachee.appendChild(this._svg);
+    params.parent.appendChild(this._svg);
   };
 
   public onStart = (e: MouseEvent): any => {
