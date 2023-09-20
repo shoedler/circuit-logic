@@ -3,7 +3,8 @@ import {
   GateDragHandler,
   IDragEventHandler,
 } from "./dragEventHandler";
-import { Connector, Gate, ConnectorCollection, GateType } from "./gate";
+import { Gate, GateType } from "./gate";
+import { Connector, ConnectorCollection } from "./connector";
 
 const CONFIG = {
   probeGateMarkers: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
@@ -323,9 +324,7 @@ const getGateBuilders = (
         inputs: [],
         outputs: ["C"],
         color: "gray",
-        init: function (self) {
-          self.gateType = GateType.input;
-        },
+        gateType: GateType.input,
         logic: function (_, outs, self) {
           // Nothing to do
         },
@@ -337,9 +336,7 @@ const getGateBuilders = (
         inputs: ["A"],
         outputs: [],
         color: "gray",
-        init: function (self) {
-          self.gateType = GateType.output;
-        },
+        gateType: GateType.output,
         logic: function (ins, _, self) {
           // Nothing to do
         },

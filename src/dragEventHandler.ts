@@ -1,4 +1,6 @@
-import { Connector, Edge, Gate } from "./gate";
+import { Gate } from "./gate";
+import { Connector } from "./connector";
+import { Edge } from "./edge";
 
 export interface IDragEventHandler {
   onStart: (event: MouseEvent) => any;
