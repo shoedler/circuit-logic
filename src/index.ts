@@ -5,6 +5,7 @@ import {
 } from "./dragEventHandler";
 import { Gate, GateType } from "./gate";
 import { Connector, ConnectorCollection } from "./connector";
+import { Edge } from "./edge";
 
 class Ui {
   public static readonly gatesContainer = document.querySelector(
@@ -48,6 +49,7 @@ class State {
   public static inputGateIndex: number = 0;
   public static outputGateIndex: number = 0;
   public static gates: Gate[] = [];
+  public static currentDragHandler: IDragEventHandler = null;
 
   private constructor() {}
 
@@ -77,6 +79,7 @@ class State {
     State.inputGateIndex = 0;
     State.outputGateIndex = 0;
     State.gates.length = 0;
+    State.currentDragHandler = null;
   };
 }
 
@@ -85,68 +88,20 @@ class State {
     Ui.registerCustomElements();
 
     // Create gate builder buttons
-    const gateBuilders = getBasicGateBuilders(Ui.gatesContainer);
-    Object.entries(gateBuilders).forEach(([name, builder]) =>
+    Object.entries(DEFAULT_GATES_BUILDERS).forEach(([name, builder]) =>
       addGateBuilderButton(name, builder)
     );
 
     // Create clear-circuit button
     const clearButton = document.createElement("button");
     clearButton.textContent = "🗑️ Clear circuit";
-    clearButton.addEventListener("click", _ => {
-      if (!confirm("Are you sure you want to clear the circuit?")) return;
-      State.gates.forEach(g => g.dispose());
-      State.gates.length = 0;
-    });
+    clearButton.addEventListener("click", _ => clearCircuit());
     Ui.controlsContainer.appendChild(clearButton);
 
     // Create pack-circuit button
     const packButton = document.createElement("button");
     packButton.textContent = "📦 Pack circuit";
-    packButton.addEventListener("click", _ => {
-      const inputGates = State.gates.filter(g => g.gateType === GateType.input);
-      const outputGates = State.gates.filter(
-        g => g.gateType === GateType.output
-      );
-
-      if (!inputGates.length && !outputGates.length) {
-        alert("Cannot pack circuit with no inputs or outputs");
-        return;
-      }
-
-      // Remove all gates from the circuit, but keep a reference to them for the newly packed gate
-      const packedGates: Gate[] = [];
-      Object.assign(packedGates, State.gates); // Keep reference to gates
-      State.gates.forEach(g => g.pack());
-
-      // Reset state, to get fresh Ids and remove the gate references
-      State.reset();
-
-      const name = prompt("Enter a name for the packed gate", "Packed");
-
-      // Create the packed gate
-      const packedGateBuilder = () =>
-        new Gate({
-          bounds: Ui.gatesContainer,
-          name,
-          inputs: inputGates.map(i => i.name),
-          outputs: outputGates.map(o => o.name),
-          color: "gray",
-          init: function (self) {
-            this.packedGates = packedGates;
-          },
-          logic: function (ins, outs, self) {
-            // Map this gate's inputs to the packed gates' inputs, run logic, then map outputs back
-            // to this gate's outputs - easy!
-            inputGates.forEach((g, i) => g.outputs.force(i, ins[i]));
-            this.packedGates.forEach((g: Gate) => g.run());
-            outputGates.forEach((g, i) => (outs[i] = g.inputs.read(i)));
-          },
-        });
-
-      State.gates.push(packedGateBuilder());
-      addGateBuilderButton(name, packedGateBuilder);
-    });
+    packButton.addEventListener("click", _ => packCircuit());
     Ui.controlsContainer.appendChild(packButton);
 
     // Create trashbin zone
@@ -168,31 +123,31 @@ class State {
     }, 1000 / 120);
 
     // Setup drag handler
-    let currentDragHandler: IDragEventHandler = null;
-
     document.addEventListener("mousedown", (e: MouseEvent) => {
       const element = document.elementFromPoint(e.clientX, e.clientY);
 
       if (element instanceof Connector) {
-        currentDragHandler = new EdgeDragHandler();
+        State.currentDragHandler = new EdgeDragHandler();
       } else if (
         element instanceof Gate ||
         element.classList.contains("gate-label")
       ) {
-        currentDragHandler = new GateDragHandler();
+        State.currentDragHandler = new GateDragHandler();
       } else return;
 
-      currentDragHandler.onStart(e);
+      State.currentDragHandler.onStart(e);
     });
+
     document.addEventListener("mousemove", (e: MouseEvent) => {
-      if (currentDragHandler) {
-        currentDragHandler.onDrag(e);
+      if (State.currentDragHandler) {
+        State.currentDragHandler.onDrag(e);
       }
     });
+
     document.addEventListener("mouseup", (e: MouseEvent) => {
-      if (currentDragHandler) {
-        currentDragHandler.onDrop(e);
-        currentDragHandler = null;
+      if (State.currentDragHandler) {
+        State.currentDragHandler.onDrop(e);
+        State.currentDragHandler = null;
       }
     });
 
@@ -202,176 +157,266 @@ class State {
 
 const addGateBuilderButton = (name: string, builder: () => Gate) => {
   const button = document.createElement("button");
+
   button.textContent = "➕ " + name;
   button.addEventListener("click", _ => State.gates.push(builder()));
   Ui.builderButtonsContainer.appendChild(button);
+
+  return button;
 };
 
-const getBasicGateBuilders = (
-  container: HTMLDivElement
-): { [key: string]: () => Gate } => {
-  return {
-    And: () =>
-      new Gate({
-        bounds: container,
-        name: "AND",
-        inputs: ["A", "B"],
-        outputs: ["C"],
-        logic: (ins, outs) => {
-          outs[0] = ins[0] && ins[1];
-        },
-      }),
-    Or: () =>
-      new Gate({
-        bounds: container,
-        name: "OR",
-        inputs: ["A", "B"],
-        outputs: ["C"],
-        color: "turquoise",
-        logic: (ins, outs) => {
-          outs[0] = ins[0] || ins[1];
-        },
-      }),
-    Not: () =>
-      new Gate({
-        bounds: container,
-        name: "NOT",
-        inputs: ["A"],
-        outputs: ["C"],
-        color: "red",
-        logic: (ins, outs) => {
-          outs[0] = !ins[0];
-        },
-      }),
-    Xor: () =>
-      new Gate({
-        bounds: container,
-        name: "XOR",
-        inputs: ["A", "B"],
-        outputs: ["C"],
-        color: "orange",
-        logic: function (ins, outs, self) {
-          outs[0] = ins[0] !== ins[1];
-        },
-      }),
-    Switch: () =>
-      new Gate({
-        bounds: container,
-        name: "Switch",
-        inputs: [],
-        outputs: ["C"],
-        color: "darkgreen",
-        init: function (self) {
-          this.clicked = false;
-          self.addEventListener("click", _ => (this.clicked = !this.clicked));
-          self.classList.add("switch");
-        },
-        logic: function (_, outs, self) {
-          outs[0] = this.clicked;
-        },
-      }),
-    True: () =>
-      new Gate({
-        bounds: container,
-        name: "1",
-        inputs: [],
-        outputs: ["C"],
-        color: "green",
-        logic: (ins, outs) => {
-          outs[0] = true;
-        },
-      }),
-    "2Hz Clock": () =>
-      new Gate({
-        bounds: container,
-        name: "2Hz",
-        inputs: [],
-        outputs: ["C"],
-        color: "darkgreen",
-        logic: (ins, outs) => {
-          outs[0] = new Date().getMilliseconds() % 500 < 250;
-        },
-      }),
-    "1Hz Clock": () =>
-      new Gate({
-        bounds: container,
-        name: "1Hz",
-        inputs: [],
-        outputs: ["C"],
-        color: "darkgreen",
-        logic: (ins, outs) => {
-          outs[0] = new Date().getMilliseconds() % 1000 < 500;
-        },
-      }),
-    Probe: () =>
-      new Gate({
-        bounds: container,
-        name: State.nextProbeGateMarker() + " Probe",
-        inputs: ["A"],
-        outputs: ["C"],
-        color: "gray",
-        init: function (self) {
+const clearCircuit = () => {
+  if (!confirm("Are you sure you want to clear the circuit?")) return;
+  State.gates.forEach(g => g.dispose());
+  State.gates.length = 0;
+};
+
+const packCircuit = () => {
+  const inputGates = State.gates.filter(g => g.gateType === GateType.input);
+  const outputGates = State.gates.filter(g => g.gateType === GateType.output);
+
+  if (!inputGates.length && !outputGates.length) {
+    alert("Cannot pack circuit with no inputs or outputs");
+    return;
+  }
+
+  // Remove all gates from the circuit, but keep a reference to them for the newly packed gate
+  const packedGates: Gate[] = [];
+  Object.assign(packedGates, State.gates); // Keep reference to gates
+  State.gates.forEach(g => g.detach());
+
+  // Reset state, to get fresh Ids and remove the gate references
+  State.reset();
+
+  const name = prompt("Enter a name for the packed gate", "Packed");
+
+  // Create the packed gate
+  const packedGateBuilder = () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name,
+      inputs: inputGates.map(i => i.name),
+      outputs: outputGates.map(o => o.name),
+      color: "gray",
+      init: function (self) {
+        this.packedGates = packedGates;
+      },
+      logic: function (ins, outs, self) {
+        // Map this gate's inputs to the packed gates' inputs, run logic, then map outputs back
+        // to this gate's outputs - easy!
+        inputGates.forEach((g, i) => g.outputs.force(i, ins[i]));
+        this.packedGates.forEach((g: Gate) => g.run());
+        outputGates.forEach((g, i) => (outs[i] = g.inputs.read(i)));
+      },
+    });
+
+  // Add the packed gate to the circuit, and add a builder button
+  State.gates.push(packedGateBuilder());
+  const builderButton = addGateBuilderButton(name, packedGateBuilder);
+
+  // Add ability to unpack the gate
+  builderButton.addEventListener("dblclick", _ => {
+    if (
+      !confirm(
+        "Are you sure you want to unpack this gate? This will clear the current circuit"
+      )
+    )
+      return;
+
+    State.gates.forEach(g => g.dispose());
+    State.gates.length = 0;
+
+    packedGates.forEach(g => Ui.gatesContainer.appendChild(g));
+    State.gates.push(...packedGates);
+
+    const edges = new Set<Edge>();
+    packedGates.forEach(g => {
+      [
+        ...(g.inputs as any)["_connectors"],
+        ...(g.outputs as any)["_connectors"],
+      ].forEach((connector: any) => {
+        connector["_connections"].forEach((edge: Edge) => {
+          edges.add(edge);
+        });
+      });
+    });
+
+    Array.from(edges).forEach(e =>
+      (EdgeDragHandler as any)["_svg"].appendChild(e.path)
+    );
+  });
+};
+
+const DEFAULT_GATES_BUILDERS = {
+  And: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "AND",
+      inputs: ["A", "B"],
+      outputs: ["C"],
+      logic: (ins, outs) => {
+        outs[0] = ins[0] && ins[1];
+      },
+    }),
+  Or: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "OR",
+      inputs: ["A", "B"],
+      outputs: ["C"],
+      color: "turquoise",
+      logic: (ins, outs) => {
+        outs[0] = ins[0] || ins[1];
+      },
+    }),
+  Not: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "NOT",
+      inputs: ["A"],
+      outputs: ["C"],
+      color: "red",
+      logic: (ins, outs) => {
+        outs[0] = !ins[0];
+      },
+    }),
+  Xor: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "XOR",
+      inputs: ["A", "B"],
+      outputs: ["C"],
+      color: "orange",
+      logic: function (ins, outs, self) {
+        outs[0] = ins[0] !== ins[1];
+      },
+    }),
+  Switch: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Switch",
+      inputs: [],
+      outputs: ["C"],
+      color: "darkgreen",
+      init: function (self) {
+        this.clicked = false;
+        self.addEventListener("click", _ => (this.clicked = !this.clicked));
+        self.classList.add("switch");
+      },
+      logic: function (_, outs, self) {
+        outs[0] = this.clicked;
+      },
+    }),
+  True: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "1",
+      inputs: [],
+      outputs: ["C"],
+      color: "green",
+      logic: (ins, outs) => {
+        outs[0] = true;
+      },
+    }),
+  "2Hz Clock": () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Clock",
+      info: "2Hz",
+      inputs: [],
+      outputs: ["C"],
+      color: "darkgreen",
+      logic: (ins, outs) => {
+        outs[0] = new Date().getMilliseconds() % 500 < 250;
+      },
+    }),
+  "1Hz Clock": () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Clock",
+      info: "1Hz",
+      inputs: [],
+      outputs: ["C"],
+      color: "darkgreen",
+      logic: (ins, outs) => {
+        outs[0] = new Date().getMilliseconds() % 1000 < 500;
+      },
+    }),
+  Probe: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Probe",
+      info: State.nextProbeGateMarker(),
+      inputs: ["A"],
+      outputs: ["C"],
+      color: "gray",
+      init: function (self) {
+        this.lastOn = null;
+        this.lastOff = null;
+      },
+      logic: function (ins, outs, self) {
+        if (ins[0] && this.lastOn === null) {
+          this.lastOn = Date.now();
+        } else if (!ins[0] && this.lastOn !== null) {
+          console.log(
+            `${self.name} ${self.info} on for  ${Date.now() - this.lastOn}ms`
+          );
           this.lastOn = null;
+        }
+
+        if (!ins[0] && this.lastOff === null) {
+          this.lastOff = Date.now();
+        } else if (ins[0] && this.lastOff !== null) {
+          console.log(
+            `${self.name} ${self.info} off for ${Date.now() - this.lastOff}ms`
+          );
           this.lastOff = null;
-        },
-        logic: function (ins, outs, self) {
-          if (ins[0] && this.lastOn === null) {
-            this.lastOn = Date.now();
-          } else if (!ins[0] && this.lastOn !== null) {
-            console.log(`${self.name} on for  ${Date.now() - this.lastOn}ms`);
-            this.lastOn = null;
-          }
+        }
 
-          if (!ins[0] && this.lastOff === null) {
-            this.lastOff = Date.now();
-          } else if (ins[0] && this.lastOff !== null) {
-            console.log(`${self.name} off for ${Date.now() - this.lastOff}ms`);
-            this.lastOff = null;
-          }
-
-          outs[0] = ins[0];
-        },
-      }),
-    Lamp: () =>
-      new Gate({
-        bounds: container,
-        name: "💡",
-        inputs: ["A"],
-        outputs: [],
-        color: "gray",
-        init: function (self) {
-          this.on = false;
-        },
-        logic: function (ins, _, self) {
-          if (ins[0] !== this.on) {
-            this.on = ins[0];
-            self.classList.toggle("lamp-on", this.on);
-          }
-        },
-      }),
-    Input: () =>
-      new Gate({
-        bounds: container,
-        name: "In " + State.nextInputGateId(),
-        inputs: [],
-        outputs: ["C"],
-        color: "gray",
-        gateType: GateType.input,
-        logic: function (_, outs, self) {
-          // Nothing to do
-        },
-      }),
-    Output: () =>
-      new Gate({
-        bounds: container,
-        name: "Out " + State.nextOutputGateId(),
-        inputs: ["A"],
-        outputs: [],
-        color: "gray",
-        gateType: GateType.output,
-        logic: function (ins, _, self) {
-          // Nothing to do
-        },
-      }),
-  };
+        outs[0] = ins[0];
+      },
+    }),
+  Lamp: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "💡",
+      inputs: ["A"],
+      outputs: [],
+      color: "gray",
+      init: function (self) {
+        this.on = false;
+      },
+      logic: function (ins, _, self) {
+        if (ins[0] !== this.on) {
+          this.on = ins[0];
+          self.classList.toggle("lamp-on", this.on);
+        }
+      },
+    }),
+  Input: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "In",
+      info: State.nextInputGateId(),
+      inputs: [],
+      outputs: ["C"],
+      color: "gray",
+      gateType: GateType.input,
+      logic: function (_, outs, self) {
+        // Nothing to do
+      },
+    }),
+  Output: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Out",
+      info: State.nextOutputGateId(),
+      inputs: ["A"],
+      outputs: [],
+      color: "gray",
+      gateType: GateType.output,
+      logic: function (ins, _, self) {
+        // Nothing to do
+      },
+    }),
 };

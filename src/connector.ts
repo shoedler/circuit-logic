@@ -1,9 +1,9 @@
 import { Edge } from "./edge";
-import { IDisposable, IRedrawable, IPackable } from "./gate";
+import { IDisposable, IRedrawable, IDetachable } from "./gate";
 
 export class Connector
   extends HTMLDivElement
-  implements IDisposable, IRedrawable, IPackable
+  implements IDisposable, IRedrawable, IDetachable
 {
   public readonly type: () => "inputs" | "outputs";
   public readonly name: string;
@@ -63,14 +63,14 @@ export class Connector
     this.remove();
   };
 
-  public pack = (): void => {
+  public detach = (): void => {
     this._connections.forEach(e => e.remove());
   };
 }
 
 export class ConnectorCollection
   extends HTMLDivElement
-  implements IDisposable, IRedrawable, IPackable
+  implements IDisposable, IRedrawable, IDetachable
 {
   public readonly type: "inputs" | "outputs";
   private readonly _connectors: Connector[] = [];
@@ -111,7 +111,7 @@ export class ConnectorCollection
     this.remove();
   };
 
-  public pack = (): void => {
-    this._connectors.forEach(c => c.pack());
+  public detach = (): void => {
+    this._connectors.forEach(c => c.detach());
   };
 }

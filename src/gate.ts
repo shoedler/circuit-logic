@@ -8,8 +8,8 @@ export interface IRedrawable {
   redraw(): void;
 }
 
-export interface IPackable {
-  pack(): void;
+export interface IDetachable {
+  detach(): void; // Meaning: remove from DOM
 }
 
 /**
@@ -29,6 +29,7 @@ export interface GateConfig {
   inputs?: string[];
   outputs?: string[];
   gateType?: GateType;
+  info?: string;
   color?:
     | "red"
     | "orange"
@@ -48,12 +49,13 @@ export enum GateType {
 
 export class Gate
   extends HTMLDivElement
-  implements IDisposable, IRedrawable, IPackable
+  implements IDisposable, IRedrawable, IDetachable
 {
   public readonly gateType?: GateType; // optional
   private static _gateCount = 0;
   private readonly _inputs: ConnectorCollection;
   private readonly _name: HTMLParagraphElement;
+  private readonly _infoPill: HTMLParagraphElement | undefined;
   private readonly _outputs: ConnectorCollection;
   private readonly _logic: (
     inputs: boolean[],
@@ -66,6 +68,14 @@ export class Gate
   }
   private set name(v: string) {
     this._name.innerText = v;
+  }
+
+  public get info(): string | undefined {
+    return this._infoPill?.innerText ?? undefined;
+  }
+
+  public set info(v: string) {
+    if (this._infoPill) this._infoPill.innerText = v;
   }
 
   public get inputs(): ConnectorCollection {
@@ -100,6 +110,13 @@ export class Gate
     this._name.classList.add("gate-label");
     this.appendChild(this._name);
 
+    if (params.info) {
+      this._infoPill = document.createElement("p");
+      this._infoPill.classList.add("gate-info-pill");
+      this.appendChild(this._infoPill);
+      this.info = params.info;
+    }
+
     if (params.outputs) {
       this._outputs = new ConnectorCollection(this, "outputs", params.outputs);
     }
@@ -131,9 +148,9 @@ export class Gate
     this.remove();
   };
 
-  public pack = (): void => {
-    this._inputs.pack();
-    this._outputs.pack();
+  public detach = (): void => {
+    this._inputs.detach();
+    this._outputs.detach();
     this.remove();
   };
 }
