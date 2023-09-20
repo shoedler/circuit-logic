@@ -50,6 +50,10 @@ export class EdgeDragHandler implements IDragEventHandler {
           this._currentEdge.illegal = false;
           this._currentEdge.legal = true;
         }
+        if (potentialEndConnector.hasConnection(this._currentEdge.start)) {
+          this._currentEdge.illegal = true;
+          this._currentEdge.legal = false;
+        }
       } else {
         this._currentEdge.illegal = false;
         this._currentEdge.legal = false;
@@ -74,6 +78,11 @@ export class EdgeDragHandler implements IDragEventHandler {
           this._currentEdge.dispose();
           return;
         }
+        if (potentialEndConnector.hasConnection(this._currentEdge.start)) {
+          this._currentEdge.dispose();
+          return;
+        }
+
         potentialEndConnector.endEdge(this._currentEdge);
         this._currentEdge.draw(); // Update with the final position
       } else {

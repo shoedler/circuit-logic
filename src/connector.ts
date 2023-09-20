@@ -7,7 +7,7 @@ export class Connector
 {
   public readonly type: () => "inputs" | "outputs";
   public readonly name: string;
-  private _connections: Edge[] = []; // Can be a connector because when packing, edges are removed
+  private _connections: Edge[] = [];
 
   public get state(): boolean {
     return this._connections.some(edge => edge.state);
@@ -32,6 +32,9 @@ export class Connector
 
     this.name = name;
   }
+
+  public hasConnection = (other: Connector): boolean =>
+    this._connections.some(e => e.end === other || e.start === other);
 
   public newEdge = (parent: SVGElement): Edge => {
     const edge = new Edge({ parent, start: this });

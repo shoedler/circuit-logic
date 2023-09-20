@@ -38,6 +38,12 @@ class Ui {
 }
 
 class State {
+  public static readonly config = {
+    probeGateMarkers: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"] as const,
+    inputNames: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] as const,
+    outputNames: ["Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"] as const,
+  };
+
   public static probeGateIndex: number = 0;
   public static inputGateIndex: number = 0;
   public static outputGateIndex: number = 0;
@@ -51,47 +57,28 @@ class State {
       : "";
 
   public static nextProbeGateMarker = () =>
-    CONFIG.probeGateMarkers[
-      STATE.probeGateIndex++ % CONFIG.probeGateMarkers.length
-    ] + State.getSuffix(STATE.probeGateIndex, CONFIG.probeGateMarkers.length);
+    State.config.probeGateMarkers[
+      State.probeGateIndex++ % State.config.probeGateMarkers.length
+    ] +
+    State.getSuffix(State.probeGateIndex, State.config.probeGateMarkers.length);
 
   public static nextInputGateId = () =>
-    CONFIG.inputNames[STATE.inputGateIndex++ % CONFIG.inputNames.length] +
-    State.getSuffix(STATE.inputGateIndex, CONFIG.inputNames.length);
+    State.config.inputNames[
+      State.inputGateIndex++ % State.config.inputNames.length
+    ] + State.getSuffix(State.inputGateIndex, State.config.inputNames.length);
 
   public static nextOutputGateId = () =>
-    CONFIG.outputNames[STATE.outputGateIndex++ % CONFIG.outputNames.length] +
-    State.getSuffix(STATE.outputGateIndex, CONFIG.outputNames.length);
+    State.config.outputNames[
+      State.outputGateIndex++ % State.config.outputNames.length
+    ] + State.getSuffix(State.outputGateIndex, State.config.outputNames.length);
+
+  public static reset = () => {
+    State.probeGateIndex = 0;
+    State.inputGateIndex = 0;
+    State.outputGateIndex = 0;
+    State.gates.length = 0;
+  };
 }
-
-const CONFIG = {
-  probeGateMarkers: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
-  inputNames: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
-  outputNames: ["Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"],
-};
-
-const STATE = {
-  probeGateIndex: 0,
-  inputGateIndex: 0,
-  outputGateIndex: 0,
-  gates: [] as Gate[],
-};
-
-const getSuffix = (index: number, length: number) =>
-  Math.floor((index - 1) / length) > 0 ? Math.floor((index - 1) / length) : "";
-
-const nextProbeGateMarker = () =>
-  CONFIG.probeGateMarkers[
-    STATE.probeGateIndex++ % CONFIG.probeGateMarkers.length
-  ] + getSuffix(STATE.probeGateIndex, CONFIG.probeGateMarkers.length);
-
-const nextInputGateId = () =>
-  CONFIG.inputNames[STATE.inputGateIndex++ % CONFIG.inputNames.length] +
-  getSuffix(STATE.inputGateIndex, CONFIG.inputNames.length);
-
-const nextOutputGateId = () =>
-  CONFIG.outputNames[STATE.outputGateIndex++ % CONFIG.outputNames.length] +
-  getSuffix(STATE.outputGateIndex, CONFIG.outputNames.length);
 
 (() => {
   document.addEventListener("DOMContentLoaded", _ => {
@@ -108,8 +95,8 @@ const nextOutputGateId = () =>
     clearButton.textContent = "🗑️ Clear circuit";
     clearButton.addEventListener("click", _ => {
       if (!confirm("Are you sure you want to clear the circuit?")) return;
-      STATE.gates.forEach(g => g.dispose());
-      STATE.gates.length = 0;
+      State.gates.forEach(g => g.dispose());
+      State.gates.length = 0;
     });
     Ui.controlsContainer.appendChild(clearButton);
 
@@ -117,8 +104,8 @@ const nextOutputGateId = () =>
     const packButton = document.createElement("button");
     packButton.textContent = "📦 Pack circuit";
     packButton.addEventListener("click", _ => {
-      const inputGates = STATE.gates.filter(g => g.gateType === GateType.input);
-      const outputGates = STATE.gates.filter(
+      const inputGates = State.gates.filter(g => g.gateType === GateType.input);
+      const outputGates = State.gates.filter(
         g => g.gateType === GateType.output
       );
 
@@ -127,11 +114,13 @@ const nextOutputGateId = () =>
         return;
       }
 
-      // Remove all gates from the circuit, but keep a reference to them for the new packed gate
+      // Remove all gates from the circuit, but keep a reference to them for the newly packed gate
       const packedGates: Gate[] = [];
-      Object.assign(packedGates, STATE.gates); // Keep reference to gates
-      STATE.gates.forEach(g => g.pack());
-      STATE.gates.length = 0;
+      Object.assign(packedGates, State.gates); // Keep reference to gates
+      State.gates.forEach(g => g.pack());
+
+      // Reset state, to get fresh Ids and remove the gate references
+      State.reset();
 
       const name = prompt("Enter a name for the packed gate", "Packed");
 
@@ -155,7 +144,7 @@ const nextOutputGateId = () =>
           },
         });
 
-      STATE.gates.push(packedGateBuilder());
+      State.gates.push(packedGateBuilder());
       addGateBuilderButton(name, packedGateBuilder);
     });
     Ui.controlsContainer.appendChild(packButton);
@@ -173,7 +162,7 @@ const nextOutputGateId = () =>
       const simulationTicks = Math.round(1000 / simulationTime);
       Ui.simSpeedParagraph.textContent = `${simulationTicks} ticks/s`;
 
-      STATE.gates.forEach(g => g.run());
+      State.gates.forEach(g => g.run());
 
       simulationTimer = performance.now();
     }, 1000 / 120);
@@ -214,7 +203,7 @@ const nextOutputGateId = () =>
 const addGateBuilderButton = (name: string, builder: () => Gate) => {
   const button = document.createElement("button");
   button.textContent = "➕ " + name;
-  button.addEventListener("click", _ => STATE.gates.push(builder()));
+  button.addEventListener("click", _ => State.gates.push(builder()));
   Ui.builderButtonsContainer.appendChild(button);
 };
 
@@ -317,7 +306,7 @@ const getBasicGateBuilders = (
     Probe: () =>
       new Gate({
         bounds: container,
-        name: nextProbeGateMarker() + " Probe",
+        name: State.nextProbeGateMarker() + " Probe",
         inputs: ["A"],
         outputs: ["C"],
         color: "gray",
@@ -363,7 +352,7 @@ const getBasicGateBuilders = (
     Input: () =>
       new Gate({
         bounds: container,
-        name: "In " + nextInputGateId(),
+        name: "In " + State.nextInputGateId(),
         inputs: [],
         outputs: ["C"],
         color: "gray",
@@ -375,7 +364,7 @@ const getBasicGateBuilders = (
     Output: () =>
       new Gate({
         bounds: container,
-        name: "Out " + nextOutputGateId(),
+        name: "Out " + State.nextOutputGateId(),
         inputs: ["A"],
         outputs: [],
         color: "gray",
