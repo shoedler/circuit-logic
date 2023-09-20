@@ -6,6 +6,64 @@ import {
 import { Gate, GateType } from "./gate";
 import { Connector, ConnectorCollection } from "./connector";
 
+class Ui {
+  public static readonly gatesContainer = document.querySelector(
+    ".gates"
+  ) as HTMLDivElement;
+  public static readonly edgesContainer = document.querySelector(
+    ".edges"
+  ) as HTMLDivElement;
+  public static readonly simSpeedParagraph = document.querySelector(
+    ".simulation-speedometer"
+  ) as HTMLParagraphElement;
+  public static readonly builderButtonsContainer = document.querySelector(
+    ".builder-buttons"
+  ) as HTMLDivElement;
+  public static readonly controlsContainer = document.querySelector(
+    ".controls"
+  ) as HTMLDivElement;
+
+  private constructor() {}
+
+  public static registerCustomElements() {
+    // Register custom elements
+    customElements.define("cl-gate", Gate, { extends: "div" });
+    customElements.define("cl-gate-connector", Connector, {
+      extends: "div",
+    });
+    customElements.define("cl-gate-connector-collection", ConnectorCollection, {
+      extends: "div",
+    });
+  }
+}
+
+class State {
+  public static probeGateIndex: number = 0;
+  public static inputGateIndex: number = 0;
+  public static outputGateIndex: number = 0;
+  public static gates: Gate[] = [];
+
+  private constructor() {}
+
+  private static getSuffix = (index: number, length: number) =>
+    Math.floor((index - 1) / length) > 0
+      ? Math.floor((index - 1) / length)
+      : "";
+
+  public static nextProbeGateMarker = () =>
+    CONFIG.probeGateMarkers[
+      STATE.probeGateIndex++ % CONFIG.probeGateMarkers.length
+    ] + State.getSuffix(STATE.probeGateIndex, CONFIG.probeGateMarkers.length);
+
+  public static nextInputGateId = () =>
+    CONFIG.inputNames[STATE.inputGateIndex++ % CONFIG.inputNames.length] +
+    State.getSuffix(STATE.inputGateIndex, CONFIG.inputNames.length);
+
+  public static nextOutputGateId = () =>
+    CONFIG.outputNames[STATE.outputGateIndex++ % CONFIG.outputNames.length] +
+    State.getSuffix(STATE.outputGateIndex, CONFIG.outputNames.length);
+}
+
 const CONFIG = {
   probeGateMarkers: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤"],
   inputNames: ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
@@ -20,7 +78,7 @@ const STATE = {
 };
 
 const getSuffix = (index: number, length: number) =>
-  Math.floor(index / length) > 0 ? Math.floor(index / length) : "";
+  Math.floor((index - 1) / length) > 0 ? Math.floor((index - 1) / length) : "";
 
 const nextProbeGateMarker = () =>
   CONFIG.probeGateMarkers[
@@ -37,38 +95,15 @@ const nextOutputGateId = () =>
 
 (() => {
   document.addEventListener("DOMContentLoaded", _ => {
-    const gatesContainer = document.querySelector(".gates") as HTMLDivElement;
-    const edgesContainer = document.querySelector(".edges") as HTMLDivElement;
-    const simSpeedometer = document.querySelector(
-      ".simulation-speedometer"
-    ) as HTMLParagraphElement;
-    const builderButtonsContainer = document.querySelector(
-      ".builder-buttons"
-    ) as HTMLDivElement;
-    const controlsContainer = document.querySelector(
-      ".controls"
-    ) as HTMLDivElement;
-
-    // Register custom elements
-    customElements.define("cl-gate", Gate, { extends: "div" });
-    customElements.define("cl-gate-connector", Connector, {
-      extends: "div",
-    });
-    customElements.define("cl-gate-connector-collection", ConnectorCollection, {
-      extends: "div",
-    });
+    Ui.registerCustomElements();
 
     // Create gate builder buttons
-    const gateBuilders = getGateBuilders(gatesContainer);
+    const gateBuilders = getBasicGateBuilders(Ui.gatesContainer);
+    Object.entries(gateBuilders).forEach(([name, builder]) =>
+      addGateBuilderButton(name, builder)
+    );
 
-    Object.entries(gateBuilders).forEach(([name, builder]) => {
-      const button = document.createElement("button");
-      button.textContent = "➕ " + name;
-      button.addEventListener("click", _ => STATE.gates.push(builder()));
-      builderButtonsContainer.appendChild(button);
-    });
-
-    // Create control buttons
+    // Create clear-circuit button
     const clearButton = document.createElement("button");
     clearButton.textContent = "🗑️ Clear circuit";
     clearButton.addEventListener("click", _ => {
@@ -76,15 +111,18 @@ const nextOutputGateId = () =>
       STATE.gates.forEach(g => g.dispose());
       STATE.gates.length = 0;
     });
-    controlsContainer.appendChild(clearButton);
+    Ui.controlsContainer.appendChild(clearButton);
 
+    // Create pack-circuit button
     const packButton = document.createElement("button");
     packButton.textContent = "📦 Pack circuit";
     packButton.addEventListener("click", _ => {
-      const inputs = STATE.gates.filter(g => g.gateType === GateType.input);
-      const outputs = STATE.gates.filter(g => g.gateType === GateType.output);
+      const inputGates = STATE.gates.filter(g => g.gateType === GateType.input);
+      const outputGates = STATE.gates.filter(
+        g => g.gateType === GateType.output
+      );
 
-      if (!inputs.length && !outputs.length) {
+      if (!inputGates.length && !outputGates.length) {
         alert("Cannot pack circuit with no inputs or outputs");
         return;
       }
@@ -95,47 +133,45 @@ const nextOutputGateId = () =>
       STATE.gates.forEach(g => g.pack());
       STATE.gates.length = 0;
 
+      const name = prompt("Enter a name for the packed gate", "Packed");
+
       // Create the packed gate
-      const packedGate = new Gate({
-        bounds: gatesContainer,
-        name: "Packed",
-        inputs: inputs.map(i => i.name),
-        outputs: outputs.map(o => o.name),
-        color: "gray",
-        init: function (self) {
-          this.packedGates = packedGates;
-        },
-        logic: function (ins, outs, self) {
-          for (let i = 0; i < ins.length; i++) {
-            const packedInputGate = inputs[i];
-            packedInputGate.outputs.fromBoolArray([ins[i]]);
-          }
+      const packedGateBuilder = () =>
+        new Gate({
+          bounds: Ui.gatesContainer,
+          name,
+          inputs: inputGates.map(i => i.name),
+          outputs: outputGates.map(o => o.name),
+          color: "gray",
+          init: function (self) {
+            this.packedGates = packedGates;
+          },
+          logic: function (ins, outs, self) {
+            // Map this gate's inputs to the packed gates' inputs, run logic, then map outputs back
+            // to this gate's outputs - easy!
+            inputGates.forEach((g, i) => g.outputs.force(i, ins[i]));
+            this.packedGates.forEach((g: Gate) => g.run());
+            outputGates.forEach((g, i) => (outs[i] = g.inputs.read(i)));
+          },
+        });
 
-          // Run the packed gates
-          this.packedGates.forEach((g: Gate) => g.run());
-
-          for (let i = 0; i < outs.length; i++) {
-            const packedOutputGate = outputs[i];
-            outs[i] = packedOutputGate.inputs.toBoolArray()[0];
-          }
-        },
-      });
-
-      STATE.gates.push(packedGate);
+      STATE.gates.push(packedGateBuilder());
+      addGateBuilderButton(name, packedGateBuilder);
     });
-    controlsContainer.appendChild(packButton);
+    Ui.controlsContainer.appendChild(packButton);
 
+    // Create trashbin zone
     const trashbinDiv = document.createElement("div");
     trashbinDiv.classList.add("trashbin");
     trashbinDiv.textContent = "Drop here to delete";
-    controlsContainer.appendChild(trashbinDiv);
+    Ui.controlsContainer.appendChild(trashbinDiv);
 
     // Start simulation
     let simulationTimer = performance.now();
     setInterval(() => {
       const simulationTime = performance.now() - simulationTimer;
       const simulationTicks = Math.round(1000 / simulationTime);
-      simSpeedometer.textContent = `${simulationTicks} ticks/s`;
+      Ui.simSpeedParagraph.textContent = `${simulationTicks} ticks/s`;
 
       STATE.gates.forEach(g => g.run());
 
@@ -171,11 +207,18 @@ const nextOutputGateId = () =>
       }
     });
 
-    EdgeDragHandler.attach({ attachee: edgesContainer });
+    EdgeDragHandler.attach({ attachee: Ui.edgesContainer });
   });
 })();
 
-const getGateBuilders = (
+const addGateBuilderButton = (name: string, builder: () => Gate) => {
+  const button = document.createElement("button");
+  button.textContent = "➕ " + name;
+  button.addEventListener("click", _ => STATE.gates.push(builder()));
+  Ui.builderButtonsContainer.appendChild(button);
+};
+
+const getBasicGateBuilders = (
   container: HTMLDivElement
 ): { [key: string]: () => Gate } => {
   return {

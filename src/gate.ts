@@ -106,6 +106,10 @@ export class Gate
 
     this.name = params.name;
 
+    if (params.gateType !== undefined) {
+      this.gateType = params.gateType;
+    }
+
     params.bounds.appendChild(this);
   }
 

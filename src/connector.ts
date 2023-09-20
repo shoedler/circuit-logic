@@ -94,6 +94,11 @@ export class ConnectorCollection
     this._connectors.forEach((c, i) => (c.state = values[i]));
   };
 
+  public force = (i: number, v: boolean): boolean =>
+    (this._connectors[i].state = v);
+
+  public read = (i: number): boolean => this._connectors[i].state;
+
   public redraw = (): void => {
     this._connectors.forEach(c => c.redraw());
   };
