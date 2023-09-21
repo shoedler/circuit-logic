@@ -9,6 +9,10 @@ export class Connector
   public readonly name: string;
   private _connections: Edge[] = [];
 
+  public get connections(): Edge[] {
+    return this._connections;
+  }
+
   public get state(): boolean {
     return this._connections.some(edge => edge.state);
   }
@@ -74,6 +78,10 @@ export class ConnectorCollection
 {
   public readonly type: "inputs" | "outputs";
   private readonly _connectors: Connector[] = [];
+
+  public get connectors(): Connector[] {
+    return this._connectors;
+  }
 
   constructor(
     owner: HTMLElement,

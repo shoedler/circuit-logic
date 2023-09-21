@@ -170,6 +170,9 @@ class State {
     });
 
     EdgeDragHandler.attach({ parent: Ui.edgesContainer });
+
+    // Create starter circuit
+    createStarterCircuit();
   });
 })();
 
@@ -218,9 +221,9 @@ const packCircuit = () => {
       logic: function (ins, outs, self) {
         // Map this gate's inputs to the packed gates' inputs, run logic, then map outputs back
         // to this gate's outputs - easy!
-        inputGates.forEach((g, i) => g.outputs.force(i, ins[i]));
+        inputGates.forEach((g, i) => g.outputs.force(0, ins[i])); // Force 0, because an input gate has exactly one output
         this.packedGates.forEach((g: Gate) => g.run());
-        outputGates.forEach((g, i) => (outs[i] = g.inputs.read(i)));
+        outputGates.forEach((g, i) => (outs[i] = g.inputs.read(0))); // Read 0, because an output gate has exactly one input
       },
     });
 
@@ -242,15 +245,10 @@ const packCircuit = () => {
     packedGates.forEach(g => Ui.gatesContainer.appendChild(g));
     State.gates.push(...packedGates);
 
-    // TODO: Refactor so that we don't have to access private members via "as any".
-    //       Maybe add an interface "IEdgeRetrievable" with a method "getEdges(): Edge[]"?
     const edges = new Set<Edge>();
     packedGates.forEach(g => {
-      [
-        ...(g.inputs as any)["_connectors"],
-        ...(g.outputs as any)["_connectors"],
-      ].forEach((connector: any) => {
-        connector["_connections"].forEach((edge: Edge) => {
+      [...g.inputs.connectors, ...g.outputs.connectors].forEach(connector => {
+        connector.connections.forEach(edge => {
           edges.add(edge);
         });
       });
@@ -275,6 +273,21 @@ const addGateBuilderButton = (name: string, builder: () => Gate) => {
 };
 
 const DEFAULT_GATE_BUILDERS = {
+  Label: (label?: string) =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Label",
+      inputs: [],
+      outputs: [],
+      color: "black",
+      init: function (self) {
+        (self as any).name =
+          label ?? prompt("Enter a name for the label", "Label");
+      },
+      logic: function (_, outs, self) {
+        // Nothing to do
+      },
+    }),
   And: () =>
     new Gate({
       bounds: Ui.gatesContainer,
@@ -332,6 +345,23 @@ const DEFAULT_GATE_BUILDERS = {
       },
       logic: function (_, outs, self) {
         outs[0] = this.clicked;
+      },
+    }),
+  Button: () =>
+    new Gate({
+      bounds: Ui.gatesContainer,
+      name: "Button",
+      inputs: [],
+      outputs: ["C"],
+      color: "darkgreen",
+      init: function (self) {
+        this.pressing = false;
+        self.addEventListener("mousedown", _ => (this.pressing = true));
+        self.addEventListener("mouseup", _ => (this.pressing = false));
+        self.classList.add("button");
+      },
+      logic: function (_, outs, self) {
+        outs[0] = this.pressing;
       },
     }),
   True: () =>
@@ -479,4 +509,94 @@ const DEFAULT_GATE_BUILDERS = {
         // Nothing to do
       },
     }),
+};
+
+const createStarterCircuit = () => {
+  clearCircuit(true);
+
+  State.gates = [
+    DEFAULT_GATE_BUILDERS.Button(),
+    DEFAULT_GATE_BUILDERS.Button(),
+    DEFAULT_GATE_BUILDERS.Or(),
+    DEFAULT_GATE_BUILDERS.Not(),
+    DEFAULT_GATE_BUILDERS.Or(),
+    DEFAULT_GATE_BUILDERS.Not(),
+    DEFAULT_GATE_BUILDERS.Lamp(),
+    DEFAULT_GATE_BUILDERS.Lamp(),
+    DEFAULT_GATE_BUILDERS.Label("Set"),
+    DEFAULT_GATE_BUILDERS.Label("Reset"),
+    DEFAULT_GATE_BUILDERS.Label("Q"),
+    DEFAULT_GATE_BUILDERS.Label("Q'"),
+  ];
+
+  const svg = (EdgeDragHandler as any)["_svg"] as SVGElement;
+
+  const [
+    button1,
+    button2,
+    or1,
+    not1,
+    or2,
+    not2,
+    lamp1,
+    lamp2,
+    labelSet,
+    labelReset,
+    labelQ,
+    labelQ_,
+  ] = State.gates;
+
+  // Button1 -> Or 1 & Button2 -> Or 2
+  let edge = button1.outputs.connectors[0].newEdge(svg);
+  or1.inputs.connectors[0].endEdge(edge);
+  edge = button2.outputs.connectors[0].newEdge(svg);
+  or2.inputs.connectors[1].endEdge(edge);
+
+  // OR 1 -> NOT 1 & OR 2 -> NOT 2
+  edge = or1.outputs.connectors[0].newEdge(svg);
+  not1.inputs.connectors[0].endEdge(edge);
+  edge = or2.outputs.connectors[0].newEdge(svg);
+  not2.inputs.connectors[0].endEdge(edge);
+
+  // NOT 1 -> Lamp 1 & NOT 2 -> Lamp 2
+  edge = not1.outputs.connectors[0].newEdge(svg);
+  lamp1.inputs.connectors[0].endEdge(edge);
+  edge = not2.outputs.connectors[0].newEdge(svg);
+  lamp2.inputs.connectors[0].endEdge(edge);
+
+  // NOT 1 -> OR 2 & NOT 2 -> OR 1
+  edge = not1.outputs.connectors[0].newEdge(svg);
+  or2.inputs.connectors[0].endEdge(edge);
+  edge = not2.outputs.connectors[0].newEdge(svg);
+  or1.inputs.connectors[1].endEdge(edge);
+
+  const setPos = (el: HTMLElement, pos: { x: number; y: number }) => {
+    const ofsX =
+      el.clientLeft - Ui.gatesContainer.clientLeft - el.clientWidth / 2;
+    const ofsY =
+      el.clientTop - Ui.gatesContainer.clientTop - el.clientHeight / 2;
+    el.style.position = "absolute";
+    el.style.transform = `translate(${ofsX + pos.x}px, ${ofsY + pos.y}px)`;
+  };
+
+  // Distribute gates on the screen
+  setPos(button1, { x: 50, y: 60 });
+  setPos(button2, { x: 50, y: 190 });
+
+  setPos(or1, { x: 190, y: 40 });
+  setPos(or2, { x: 190, y: 210 });
+
+  setPos(not1, { x: 260, y: 70 });
+  setPos(not2, { x: 260, y: 180 });
+
+  setPos(lamp1, { x: 370, y: 50 });
+  setPos(lamp2, { x: 370, y: 200 });
+
+  setPos(labelSet, { x: 90, y: 40 });
+  setPos(labelReset, { x: 90, y: 170 });
+
+  setPos(labelQ, { x: 380, y: 30 });
+  setPos(labelQ_, { x: 380, y: 180 });
+
+  State.gates.forEach(g => g.redraw());
 };

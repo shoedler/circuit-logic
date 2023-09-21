@@ -7,6 +7,7 @@
   --color-turquoise: rgb(57, 201, 201);
   --color-darkgreen: rgb(79, 138, 62);
   --color-gray: rgb(92, 92, 92);
+  --color-black: rgb(23, 23, 23);
 
   --color-active: var(--color-yellow);
 }

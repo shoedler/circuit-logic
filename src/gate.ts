@@ -38,7 +38,8 @@ export interface GateConfig {
     | "blue"
     | "turquoise"
     | "darkgreen"
-    | "gray";
+    | "gray"
+    | "black";
   init?: (self: Gate) => void;
 }
 
@@ -92,12 +93,6 @@ export class Gate
     this.classList.add("gate");
     this.id = `gate-${Gate._gateCount++}`;
 
-    const logicContext: any = {};
-    this._logic = params.logic.bind(logicContext);
-    if (params.init) {
-      params.init.bind(logicContext)(this);
-    }
-
     if (params.color) {
       this.style.backgroundColor = `var(--color-${params.color})`;
     }
@@ -125,6 +120,12 @@ export class Gate
 
     if (params.gateType !== undefined) {
       this.gateType = params.gateType;
+    }
+
+    const logicContext: any = {};
+    this._logic = params.logic.bind(logicContext);
+    if (params.init) {
+      params.init.bind(logicContext)(this);
     }
 
     params.bounds.appendChild(this);
