@@ -108,6 +108,9 @@ class State {
     const trashbinDiv = document.createElement("div");
     trashbinDiv.classList.add("trashbin");
     trashbinDiv.textContent = "Drop here to delete";
+    trashbinDiv.addEventListener("trashed", (e: CustomEvent) =>
+      removeGate(e.detail)
+    );
     Ui.controlsContainer.appendChild(trashbinDiv);
 
     // Start simulation
@@ -170,14 +173,10 @@ class State {
   });
 })();
 
-const addGateBuilderButton = (name: string, builder: () => Gate) => {
-  const button = document.createElement("button");
-
-  button.textContent = "➕ " + name;
-  button.addEventListener("click", _ => State.gates.push(builder()));
-  Ui.builderButtonsContainer.appendChild(button);
-
-  return button;
+const removeGate = (gate: Gate) => {
+  gate.dispose();
+  State.gates.splice(State.gates.indexOf(gate), 1);
+  State.gates.forEach(g => g.redraw()); // Other gates in the DOM might shift, so we need to redraw the edges
 };
 
 const clearCircuit = (force: boolean = false) => {
@@ -263,6 +262,16 @@ const packCircuit = () => {
       (EdgeDragHandler as any)["_svg"].appendChild(e.path)
     );
   });
+};
+
+const addGateBuilderButton = (name: string, builder: () => Gate) => {
+  const button = document.createElement("button");
+
+  button.textContent = "➕ " + name;
+  button.addEventListener("click", _ => State.gates.push(builder()));
+  Ui.builderButtonsContainer.appendChild(button);
+
+  return button;
 };
 
 const DEFAULT_GATE_BUILDERS = {

@@ -139,7 +139,9 @@ export class GateDragHandler implements IDragEventHandler {
         e.clientY >= trashbinRect.top &&
         e.clientY <= trashbinRect.bottom
       ) {
-        this._currentGate.dispose();
+        trashbinElement.dispatchEvent(
+          new CustomEvent("trashed", { detail: this._currentGate })
+        );
       }
 
       this._currentGate = null;
