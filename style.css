@@ -22,23 +22,24 @@ body {
 }
 
 .wrapper {
-  padding: 4vw;
   position: static;
   display: flex;
+  padding: 4vw;
+  width: 100%;
+
   flex-direction: column;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: flex-start;
   box-sizing: border-box;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: start;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  box-sizing: border-box;
 }
 
 .text {
@@ -76,15 +77,12 @@ body {
 }
 
 .sketch {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 65vh;
-  box-sizing: border-box;
-  background: hsl(230deg 5% 9%);
-  border-radius: 10px;
-  border-style: inset;
-  border-color: hsla(230, 5%, 80%, 0.08);
-  border-width: 5px;
-
+  height: 100%;
   display: grid;
 }
 
@@ -136,6 +134,8 @@ body {
 
 .edges, .gates {
   grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
 }
 
 svg {
@@ -177,8 +177,12 @@ svg > path.legal {
   stroke: var(--color-green) ;
 }
 
+svg > path, .gate {
+  pointer-events: all;
+}
+
 .gate {
-  position: relative;
+  position: absolute;
   width: fit-content;
   height: fit-content;
   display: flex;
