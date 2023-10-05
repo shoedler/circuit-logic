@@ -1,6 +1,6 @@
-import { Gate } from "./gate";
 import { Connector } from "./connector";
 import { Edge } from "./edge";
+import { Gate } from "./gate";
 
 export interface IDragEventHandler {
   onStart: (event: MouseEvent) => any;
@@ -9,12 +9,12 @@ export interface IDragEventHandler {
 }
 
 export class EdgeDragHandler implements IDragEventHandler {
-  private static _svg: SVGElement;
+  private _svg: SVGElement;
   private _currentEdge: Edge;
-  public static attach = (params: { parent: HTMLDivElement }) => {
-    this._svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    params.parent.appendChild(this._svg);
-  };
+
+  constructor(svg: SVGElement) {
+    this._svg = svg;
+  }
 
   public onStart = (e: MouseEvent): any => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -27,7 +27,7 @@ export class EdgeDragHandler implements IDragEventHandler {
       return;
     }
 
-    this._currentEdge = startConnector.newEdge(EdgeDragHandler._svg);
+    this._currentEdge = startConnector.newEdge(this._svg);
     e.preventDefault();
     return false;
   };
