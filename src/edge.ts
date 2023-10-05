@@ -1,5 +1,5 @@
-import { IDisposable, IRedrawable } from "./gate";
 import { Connector } from "./connector";
+import { IDisposable, IRedrawable } from "./gate";
 
 export class Edge implements IDisposable, IRedrawable {
   public readonly path: SVGPathElement;
@@ -40,7 +40,7 @@ export class Edge implements IDisposable, IRedrawable {
     this.start = params.start;
     this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     this.path.classList.add("drawing");
-    this.path.addEventListener("dblclick", _ => {
+    this.path.addEventListener("dblclick", (_) => {
       if (this.end) this.end.removeEdge(this);
       if (this.start) this.start.removeEdge(this);
       this.dispose();
@@ -88,35 +88,40 @@ export class Edge implements IDisposable, IRedrawable {
     const distance = Math.sqrt(
       Math.pow(end.left - start.left, 2) + Math.pow(end.top - start.top, 2)
     );
-    const controlPointDistance = Math.max(distance / 2, 100);
+    const controlPointDistance = Math.max(distance / 2, 110);
 
-    const startControlPoint = {
-      x: start.left + start.width + controlPointDistance,
-      y: start.top + start.height,
-    };
-    const endControlPoint = {
-      x: end.left - end.width - controlPointDistance,
-      y: end.top + end.height,
-    };
-    const midControlPoint = {
-      x: (start.left + start.width + end.left + end.width) / 2,
-      y: (start.top + start.height + end.top + end.height) / 2,
-    };
+    let path = "";
 
     const useControlPoints =
       Math.abs(start.top - end.top) > Math.abs(start.left - end.left);
 
-    const path = useControlPoints
-      ? `M ${start.left + start.width} ${start.top + start.height} C ${
-          startControlPoint.x
-        } ${startControlPoint.y} ${endControlPoint.x} ${endControlPoint.y} ${
-          end.left - end.width
-        } ${end.top + end.height}`
-      : `M ${start.left + start.width} ${start.top + start.height} C ${
-          midControlPoint.x
-        } ${start.top + start.height}, ${midControlPoint.x} ${
-          end.top + end.height
-        }, ${end.left + end.width} ${end.top + end.height}`;
+    if (useControlPoints) {
+      const startControlPoint = {
+        x: start.left + start.width + controlPointDistance,
+        y: start.top + start.height,
+      };
+      const endControlPoint = {
+        x: end.left - end.width - controlPointDistance,
+        y: end.top + end.height,
+      };
+
+      path = `M ${start.left + start.width} ${start.top + start.height} C ${
+        startControlPoint.x
+      } ${startControlPoint.y} ${endControlPoint.x} ${endControlPoint.y} ${
+        end.left + end.width
+      } ${end.top + end.height}`;
+    } else {
+      const midControlPoint = {
+        x: (start.left + start.width + end.left + end.width) / 2,
+        y: (start.top + start.height + end.top + end.height) / 2,
+      };
+
+      path = `M ${start.left + start.width} ${start.top + start.height} C ${
+        midControlPoint.x
+      } ${start.top + start.height}, ${midControlPoint.x} ${
+        end.top + end.height
+      }, ${end.left + end.width} ${end.top + end.height}`;
+    }
 
     this.path.setAttribute("d", path);
   };

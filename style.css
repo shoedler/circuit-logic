@@ -147,26 +147,28 @@ svg > path {
   fill: none;
   filter: drop-shadow( 3px 3px 2px rgba(0, 0, 0, .3));
   stroke-width: 5;
-  stroke: rgb(37, 37, 37);
+  stroke: rgb(40,40,40);
   stroke-linejoin: round;
-}
-
-svg > path.drawing {
-  stroke-dasharray: 4 3;
-  stroke-linecap: butt;
 }
 
 svg > path.active {
   stroke: var(--color-active);
-  stroke-dasharray: 4 2;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
   stroke-dashoffset: 1000;
-  animation: drawPath 30s linear forwards infinite;
+  animation: drawPath 70s linear forwards infinite;
   pointer-events: none;
 }
 @keyframes drawPath {
   to {
       stroke-dashoffset: 0;
   }
+}
+
+svg > path.drawing {
+  stroke: rgb(241, 59, 150);
+  stroke-dasharray: none !important;
+  stroke-linecap: unset !important;
 }
 
 svg > path.illegal {
