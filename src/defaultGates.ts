@@ -43,7 +43,7 @@ export const DEFAULT_GATE_BUILDERS = {
       bounds: Ui.gatesContainer,
       name: "NOT",
       inputs: ["A"],
-      outputs: ["C"],
+      outputs: ["B"],
       color: "red",
       logic: (ins, outs) => {
         outs[0] = !ins[0];
@@ -65,7 +65,7 @@ export const DEFAULT_GATE_BUILDERS = {
       bounds: Ui.gatesContainer,
       name: "Switch",
       inputs: [],
-      outputs: ["C"],
+      outputs: ["A"],
       color: "darkgreen",
       init: function (self) {
         this.clicked = false;
@@ -81,7 +81,7 @@ export const DEFAULT_GATE_BUILDERS = {
       bounds: Ui.gatesContainer,
       name: "Button",
       inputs: [],
-      outputs: ["C"],
+      outputs: ["A"],
       color: "darkgreen",
       init: function (self) {
         this.pressing = false;
@@ -98,7 +98,7 @@ export const DEFAULT_GATE_BUILDERS = {
       bounds: Ui.gatesContainer,
       name: "1",
       inputs: [],
-      outputs: ["C"],
+      outputs: ["A"],
       color: "green",
       logic: (ins, outs) => {
         outs[0] = true;
@@ -110,7 +110,7 @@ export const DEFAULT_GATE_BUILDERS = {
       name: "Clock",
       info: "1Hz",
       inputs: [],
-      outputs: ["C"],
+      outputs: ["A"],
       color: "darkgreen",
       logic: (ins, outs) => {
         outs[0] = new Date().getMilliseconds() % 1000 < 500;
@@ -122,7 +122,7 @@ export const DEFAULT_GATE_BUILDERS = {
       name: "Clock",
       info: "2Hz",
       inputs: [],
-      outputs: ["C"],
+      outputs: ["A"],
       color: "darkgreen",
       logic: (ins, outs) => {
         outs[0] = new Date().getMilliseconds() % 500 < 250;
@@ -134,7 +134,7 @@ export const DEFAULT_GATE_BUILDERS = {
       name: "Clock",
       info: "5Hz",
       inputs: [],
-      outputs: ["C"],
+      outputs: ["A"],
       color: "darkgreen",
       logic: (ins, outs) => {
         outs[0] = new Date().getMilliseconds() % 200 < 100;
@@ -146,7 +146,7 @@ export const DEFAULT_GATE_BUILDERS = {
       name: "Probe",
       info: State.nextProbeGateMarker(),
       inputs: ["A"],
-      outputs: ["C"],
+      outputs: ["B"],
       color: "gray",
       init: function (self) {
         this.lastOn = null;
@@ -212,25 +212,25 @@ export const DEFAULT_GATE_BUILDERS = {
         }
       },
     }),
-  Input: () =>
+  Input: (name?: string) =>
     new Gate({
       bounds: Ui.gatesContainer,
       name: "In",
-      info: State.nextInputGateId(),
+      info: name ?? State.nextInputGateId(),
       inputs: [],
-      outputs: ["C"],
+      outputs: [name ?? "A"],
       color: "gray",
       gateType: GateType.input,
       logic: function (_, outs, self) {
         // Nothing to do
       },
     }),
-  Output: () =>
+  Output: (name?: string) =>
     new Gate({
       bounds: Ui.gatesContainer,
       name: "Out",
-      info: State.nextOutputGateId(),
-      inputs: ["A"],
+      info: name ?? State.nextOutputGateId(),
+      inputs: [name ?? "A"],
       outputs: [],
       color: "gray",
       gateType: GateType.output,
