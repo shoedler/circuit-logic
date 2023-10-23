@@ -278,7 +278,7 @@ const addGateBuilderButton = (name: string, builder: () => Gate) => {
 const createStarterCircuit = () => {
   clearCircuit(true);
 
-  const blueprint = createBlueprint({
+  const srLatchBlueprint = createBlueprint({
     declaration: {
       btn1: "Button",
       btn2: "Button",
@@ -321,6 +321,62 @@ const createStarterCircuit = () => {
     ],
   });
 
-  State.gates = parseBlueprint(Ui.edgesSvg, Ui.origin, blueprint);
+  const adderBlueprint = createBlueprint({
+    declaration: {
+      inputA: {
+        type: "Input",
+        args: ["A"],
+      },
+      inputB: {
+        type: "Input",
+        args: ["B"],
+      },
+      inputCarry: {
+        type: "Input",
+        args: ["Carry In"],
+      },
+      outputSum: {
+        type: "Output",
+        args: ["Sum"],
+      },
+      outputCarry: {
+        type: "Output",
+        args: ["Carry Out"],
+      },
+      xor1: "Xor",
+      xor2: "Xor",
+      and1: "And",
+      and2: "And",
+      or1: "Or",
+    },
+    positions: {
+      inputA: { x: 0, y: 50 },
+      inputB: { x: 0, y: 100 },
+      inputCarry: { x: 0, y: 150 },
+      outputSum: { x: 450, y: 125 },
+      outputCarry: { x: 450, y: 75 },
+      xor1: { x: 125, y: 0 },
+      xor2: { x: 200, y: 175 },
+      and1: { x: 250, y: 50 },
+      and2: { x: 250, y: 100 },
+      or1: { x: 350, y: 100 },
+    },
+    connections: [
+      "inputA to xor1:A",
+      "inputA to and2:A",
+      "inputB to xor1:B",
+      "inputB to and2:B",
+      "inputCarry to xor2:B",
+      "inputCarry to and1:B",
+      "xor1 to xor2:A",
+      "xor1 to and1:A",
+      "and1 to or1:A",
+      "and2 to or1:B",
+      "xor2 to outputSum",
+      "or1 to outputCarry",
+    ],
+  });
+
+  State.gates = parseBlueprint(Ui.edgesSvg, Ui.origin, adderBlueprint);
   State.gates.forEach((g) => g.redraw());
 };

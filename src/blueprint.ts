@@ -25,7 +25,7 @@ export const createBlueprint = <T extends BlueprintGatesDeclaration>(
 ): Blueprint<T> => blueprint;
 
 export const parseBlueprint = <T extends BlueprintGatesDeclaration>(
-  target: SVGElement,
+  edgeCanvas: SVGElement,
   origin: HTMLElement,
   blueprint: Blueprint<T>
 ) => {
@@ -86,7 +86,7 @@ export const parseBlueprint = <T extends BlueprintGatesDeclaration>(
         `In connection '${connection}': Gate '${toGateName}' does not have a input '${toGateInputName}'`
       );
 
-    let edge = output.newEdge(target);
+    let edge = output.newEdge(edgeCanvas);
     input.endEdge(edge);
   });
 

@@ -1,4 +1,4 @@
-import { Connector, ConnectorCollection } from "./connector";
+import { ConnectorCollection } from "./connector";
 
 export interface IDisposable {
   dispose(): void;

@@ -1,5 +1,5 @@
 import { Edge } from "./edge";
-import { IDisposable, IRedrawable, IDetachable } from "./gate";
+import { IDetachable, IDisposable, IRedrawable } from "./gate";
 
 export class Connector
   extends HTMLDivElement
@@ -14,11 +14,11 @@ export class Connector
   }
 
   public get state(): boolean {
-    return this._connections.some(edge => edge.state);
+    return this._connections.some((edge) => edge.state);
   }
   public set state(v: boolean) {
     if (this.type() === "inputs") return;
-    this._connections.forEach(e => (e.state = v));
+    this._connections.forEach((e) => (e.state = v));
   }
 
   public set illegal(v: boolean) {
@@ -35,10 +35,11 @@ export class Connector
     };
 
     this.name = name;
+    this.title = name; // Tooltip
   }
 
   public hasConnection = (other: Connector): boolean =>
-    this._connections.some(e => e.end === other || e.start === other);
+    this._connections.some((e) => e.end === other || e.start === other);
 
   public newEdge = (parent: SVGElement): Edge => {
     const edge = new Edge({ parent, start: this });
@@ -59,16 +60,16 @@ export class Connector
   };
 
   public redraw = (): void => {
-    this._connections.forEach(e => e.redraw());
+    this._connections.forEach((e) => e.redraw());
   };
 
   public dispose = (): void => {
-    this._connections.forEach(e => e.dispose());
+    this._connections.forEach((e) => e.dispose());
     this.remove();
   };
 
   public detach = (): void => {
-    this._connections.forEach(e => e.remove());
+    this._connections.forEach((e) => e.remove());
   };
 }
 
@@ -94,10 +95,10 @@ export class ConnectorCollection
     this.type = type;
     owner.appendChild(this);
 
-    connectors.forEach(c => this._connectors.push(new Connector(this, c)));
+    connectors.forEach((c) => this._connectors.push(new Connector(this, c)));
   }
 
-  public toBoolArray = (): boolean[] => this._connectors.map(c => c.state);
+  public toBoolArray = (): boolean[] => this._connectors.map((c) => c.state);
 
   public fromBoolArray = (values: boolean[]): void => {
     if (this.type === "inputs")
@@ -111,15 +112,15 @@ export class ConnectorCollection
   public read = (i: number): boolean => this._connectors[i].state;
 
   public redraw = (): void => {
-    this._connectors.forEach(c => c.redraw());
+    this._connectors.forEach((c) => c.redraw());
   };
 
   public dispose = (): void => {
-    this._connectors.forEach(c => c.dispose());
+    this._connectors.forEach((c) => c.dispose());
     this.remove();
   };
 
   public detach = (): void => {
-    this._connectors.forEach(c => c.detach());
+    this._connectors.forEach((c) => c.detach());
   };
 }
