@@ -231,7 +231,7 @@ const packCircuit = () => {
     });
 
   // Add the packed gate to the circuit, and add a builder button
-  State.gates.push(packedGateBuilder());
+  addGate(packedGateBuilder());
   const builderButton = addGateBuilderButton(name, packedGateBuilder);
 
   // Add ability to unpack the gate
@@ -269,60 +269,44 @@ const addGateBuilderButton = (name: string, builder: () => Gate) => {
   const button = document.createElement("button");
 
   button.textContent = "➕ " + name;
-  button.addEventListener("click", (_) => State.gates.push(builder()));
+  button.addEventListener("click", (_) => {
+    addGate(builder());
+  });
   Ui.builderButtonsContainer.appendChild(button);
 
   return button;
 };
 
+const addGate = (gate: Gate) => {
+  setPos(gate, { x: 0, y: 0 });
+  State.gates.push(gate);
+};
+
+export const setPos = (el: Gate, pos: { x: number; y: number }) => {
+  const x = el.offsetLeft;
+  const y = el.offsetTop;
+  el.style.transform = `translate(${x + pos.x + Ui.origin.offsetLeft}px, ${
+    y + pos.y + Ui.origin.offsetTop
+  }px)`;
+};
+
+export const getPos = (el: Gate): { x: number; y: number } => {
+  const x = el.offsetLeft;
+  const y = el.offsetTop;
+  return { x: x - Ui.origin.offsetLeft, y: y - Ui.origin.offsetTop };
+};
+
 const createStarterCircuit = () => {
   clearCircuit(true);
 
-  const srLatchBlueprint = createBlueprint({
-    declaration: {
-      btn1: "Button",
-      btn2: "Button",
-      or1: "Or",
-      or2: "Or",
-      not1: "Not",
-      not2: "Not",
-      lamp1: "Lamp",
-      lamp2: "Lamp",
-      setLabel: {
-        type: "Label",
-        args: ["Q"],
-      },
-      resetLabel: {
-        type: "Label",
-        args: ["Q'"],
-      },
-    },
-    positions: {
-      btn1: { x: 0, y: 0 },
-      btn2: { x: 0, y: 50 },
-      or1: { x: 100, y: 0 },
-      or2: { x: 100, y: 130 },
-      not1: { x: 160, y: 0 },
-      not2: { x: 160, y: 130 },
-      lamp1: { x: 300, y: 0 },
-      lamp2: { x: 300, y: 50 },
-      setLabel: { x: 350, y: 0 },
-      resetLabel: { x: 350, y: 50 },
-    },
-    connections: [
-      "btn1 to or1:A",
-      "btn2 to or2:B",
-      "or1 to not1",
-      "or2 to not2",
-      "not1 to lamp1",
-      "not2 to lamp2",
-      "not1 to or2:A",
-      "not2 to or1:B",
-    ],
-  });
-
   const adderBlueprint = createBlueprint({
     declaration: {
+      label: {
+        type: "Label",
+        args: [
+          "This is a 1 bit adder circuit, press the 'Pack circuit'\n button to pack this circuit into a gate",
+        ],
+      },
       inputA: {
         type: "Input",
         args: ["A"],
@@ -360,6 +344,7 @@ const createStarterCircuit = () => {
       and1: { x: 250, y: 50 },
       and2: { x: 250, y: 100 },
       or1: { x: 350, y: 100 },
+      label: { x: 350, y: 0 },
     },
     connections: [
       "inputA to xor1:A",
@@ -377,6 +362,6 @@ const createStarterCircuit = () => {
     ],
   });
 
-  State.gates = parseBlueprint(Ui.edgesSvg, Ui.origin, adderBlueprint);
+  State.gates = parseBlueprint(Ui.edgesSvg, adderBlueprint);
   State.gates.forEach((g) => g.redraw());
 };

@@ -215,12 +215,17 @@ export const DEFAULT_GATE_BUILDERS = {
   Input: (name?: string) =>
     new Gate({
       bounds: Ui.gatesContainer,
-      name: "In",
-      info: name ?? State.nextInputGateId(),
+      name: name ?? State.nextInputGateId(),
+      info: "In",
       inputs: [],
       outputs: [name ?? "A"],
       color: "gray",
       gateType: GateType.input,
+      init: function (self) {
+        const fallback = State.nextInputGateId();
+        (self as any).name =
+          name ?? prompt("Enter a name for the input", fallback) ?? fallback;
+      },
       logic: function (_, outs, self) {
         // Nothing to do
       },
@@ -228,12 +233,17 @@ export const DEFAULT_GATE_BUILDERS = {
   Output: (name?: string) =>
     new Gate({
       bounds: Ui.gatesContainer,
-      name: "Out",
-      info: name ?? State.nextOutputGateId(),
+      name: name ?? State.nextOutputGateId(),
+      info: "Out",
       inputs: [name ?? "A"],
       outputs: [],
       color: "gray",
       gateType: GateType.output,
+      init: function (self) {
+        const fallback = State.nextOutputGateId();
+        (self as any).name =
+          name ?? prompt("Enter a name for the output", fallback) ?? fallback;
+      },
       logic: function (ins, _, self) {
         // Nothing to do
       },

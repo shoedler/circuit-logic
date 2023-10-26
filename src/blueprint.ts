@@ -1,3 +1,4 @@
+import { setPos } from ".";
 import { DEFAULT_GATE_BUILDERS } from "./defaultGates";
 import { Gate } from "./gate";
 
@@ -12,7 +13,7 @@ type BlueprintGatesDeclaration = {
       };
 };
 
-type Blueprint<T extends BlueprintGatesDeclaration> = {
+export type Blueprint<T extends BlueprintGatesDeclaration> = {
   declaration: T;
   connections: `${string} to ${string}`[];
   positions?: {
@@ -26,17 +27,8 @@ export const createBlueprint = <T extends BlueprintGatesDeclaration>(
 
 export const parseBlueprint = <T extends BlueprintGatesDeclaration>(
   edgeCanvas: SVGElement,
-  origin: HTMLElement,
   blueprint: Blueprint<T>
 ) => {
-  const setPos = (el: Gate, pos: { x: number; y: number }) => {
-    const x = el.offsetLeft;
-    const y = el.offsetTop;
-    el.style.transform = `translate(${x + pos.x + origin.offsetLeft}px, ${
-      y + pos.y + origin.offsetTop
-    }px)`;
-  };
-
   const gates: { [key: string]: Gate } = {};
   const { declaration, connections } = blueprint;
 
