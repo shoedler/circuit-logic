@@ -2,6 +2,8 @@
 
 A simple, zero-dependency, HTML5-based circuit logic simulator.
 
+![app-preview](https://github.com/user-attachments/assets/4192141e-550d-43c2-ba4b-00b0f26e5c0b)
+
 ## Usage
 
 > [!TIP]
