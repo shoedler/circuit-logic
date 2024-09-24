@@ -1,7 +1,10 @@
 {
-  "name": "app-circuit-logic",
-  "description": "Logic simulator for simple circuits",
+  "name": "circuit-logic",
+  "description": "A simple, zero-dependency, HTML5-based circuit logic simulator.",
   "version": "0.0.1",
+  "author": "shoedler",
+  "license": "Apache-2.0",
+  "main": "dist/bundle.js",
   "scripts": {
     "watch-build": "webpack --watch",
     "watch-compile": "tsc --watch",
